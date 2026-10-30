@@ -1,0 +1,2778 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Citadel: Six Months, a three-act first-person prequel to System Shock that runs in the browser.">
+<style>html,body{margin:0;padding:0}</style>
+<title>Citadel: Six Months</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+/* Layout: full-bleed first-person view; a station-terminal HUD pinned to the corners; dialogue rides the bottom edge */
+:root{
+  --void:#0b0e11;
+  --panel:rgba(13,18,22,.88);
+  --rule:#2a353d;
+  --text:#d8dfe3;
+  --muted:#8a979f;
+  --phosphor:#86dcc6;
+  --amber:#e3a43e;
+  --danger:#e0604f;
+  --display:'Chakra Petch','Segoe UI',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{background:var(--void);color:var(--text);font-family:var(--mono);font-size:14px;overflow:hidden;-webkit-user-select:none;user-select:none}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;background:var(--void)}
+button{font:inherit;color:inherit}
+button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+
+.hud-box{background:var(--panel);border:1px solid var(--rule)}
+#obj{position:fixed;top:calc(16px + env(safe-area-inset-top,0px));left:calc(16px + env(safe-area-inset-left,0px));max-width:min(330px,calc(100vw - 180px));padding:10px 14px 12px;display:flex;flex-direction:column;gap:6px}
+.lbl{font-family:var(--display);font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+#objText{font-size:13.5px;line-height:1.45;text-wrap:balance}
+#chores{list-style:none;margin:2px 0 0;padding:0;display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--muted)}
+#chores li::before{content:"[ ] ";color:var(--muted)}
+#chores li.done{color:var(--text);text-decoration:line-through;text-decoration-color:var(--muted)}
+#chores li.done::before{content:"[x] ";color:var(--phosphor)}
+#inv{font-size:12px;color:var(--muted)}
+#inv b{color:var(--text);font-weight:500}
+#status{position:fixed;top:calc(16px + env(safe-area-inset-top,0px));right:calc(16px + env(safe-area-inset-right,0px));padding:8px 12px;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+#clock{font-family:var(--display);font-weight:600;font-size:26px;letter-spacing:.04em;font-variant-numeric:tabular-nums;line-height:1}
+#deck{font-size:11.5px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+#mute{margin-top:4px;background:none;border:1px solid var(--rule);padding:2px 8px;font-size:11px;color:var(--muted);cursor:pointer}
+#cross{position:fixed;left:50%;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;background:var(--text);opacity:.7;pointer-events:none}
+#prompt{position:fixed;left:50%;top:60%;transform:translateX(-50%);padding:6px 12px;font-size:13px;white-space:nowrap;pointer-events:none}
+.key{display:inline-block;min-width:1.6em;padding:0 5px;margin-right:6px;border:1px solid var(--amber);color:var(--amber);font-family:var(--display);font-weight:600;text-align:center}
+#toast{position:fixed;left:50%;top:calc(16px + env(safe-area-inset-top,0px));transform:translateX(-50%);padding:6px 14px;font-size:12.5px;color:var(--amber);white-space:nowrap}
+
+#subs{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));width:min(760px,calc(100% - 32px));padding:12px 16px 12px;display:flex;flex-direction:column;gap:6px}
+#who{font-family:var(--display);font-weight:600;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--text)}
+#say{font-size:15px;line-height:1.5;min-height:1.5em;max-width:68ch}
+#subs.narr #say{font-style:italic;color:var(--muted)}
+#subs.shodan #who,#subs.shodan #say{color:var(--phosphor);text-shadow:0 0 12px rgba(134,220,198,.35)}
+#subs.shodan{border-color:rgba(134,220,198,.35)}
+#subs.glitch #say{animation:jit .18s steps(2) infinite}
+@keyframes jit{0%{transform:translateX(0);letter-spacing:0}50%{transform:translateX(1px);letter-spacing:.02em}100%{transform:translateX(-1px);letter-spacing:-.01em}}
+#subs.bark{opacity:.92}
+#choices{display:flex;flex-wrap:wrap;gap:8px}
+#choices button,.pbtn{background:rgba(227,164,62,.08);border:1px solid var(--amber);color:var(--text);padding:7px 12px;cursor:pointer;text-align:left}
+#choices button:hover,.pbtn:hover{background:rgba(227,164,62,.2)}
+#choices button span,.pbtn span{color:var(--amber);font-family:var(--display);font-weight:600;margin-right:8px}
+#adv{align-self:flex-end;font-size:11px;color:var(--muted);letter-spacing:.08em}
+
+#panel{position:fixed;inset:0;display:grid;place-items:center;background:rgba(5,8,10,.55);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.term{width:min(580px,100%);max-height:calc(100% - 48px);overflow:auto;background:#0e1418;border:1px solid rgba(134,220,198,.4);box-shadow:0 0 0 1px #000,0 20px 60px rgba(0,0,0,.6)}
+#pHead{font-family:var(--display);font-weight:600;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--phosphor);padding:10px 16px;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;gap:12px}
+#pBody{padding:14px 16px;color:var(--phosphor);font-size:13.5px;line-height:1.55}
+#pBody p{margin:0 0 10px}
+#pBody .msg{border-bottom:1px dashed var(--rule);padding:8px 0}
+#pBody .msg:last-child{border-bottom:0}
+#pBody .from{color:var(--amber);font-size:12px;letter-spacing:.06em}
+#pBody .dim{color:var(--muted)}
+#pBtns{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 16px}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.pad button{background:#0b1013;border:1px solid var(--rule);color:var(--phosphor);font-family:var(--display);font-weight:600;font-size:20px;padding:14px 0;cursor:pointer}
+.pad button.lit{background:rgba(134,220,198,.85);color:#081010}
+.pad button:disabled{cursor:default}
+.pad button.bad{background:var(--danger);color:#120606}
+#pBody .log{display:grid;grid-template-columns:4.4em 1fr;gap:8px;padding:3px 0;font-variant-numeric:tabular-nums}
+#pBody .log span{color:var(--amber)}
+#pBody .log.hot{color:#f4fbf8}
+.bar{height:8px;background:#1a2328;border:1px solid var(--rule);margin-top:10px}
+.bar i{display:block;height:100%;width:0;background:var(--phosphor);transition:width .8s ease}
+
+#fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .9s ease}
+#title{position:fixed;inset:0;display:flex;align-items:flex-end;background:linear-gradient(90deg,rgba(8,11,13,.94) 0%,rgba(8,11,13,.78) 52%,rgba(8,11,13,.3) 100%);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:calc(28px + env(safe-area-inset-top,0px)) calc(32px + env(safe-area-inset-bottom,0px));overflow:auto}
+.tcol{max-width:560px;display:flex;flex-direction:column;gap:16px;padding-left:clamp(0px,4vw,48px)}
+.stamp{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+h1{margin:0;font-family:var(--display);font-weight:700;font-size:clamp(46px,9vw,92px);line-height:.9;letter-spacing:.01em;text-transform:uppercase;text-wrap:balance}
+h1 em{display:block;font-style:normal;color:var(--phosphor);font-size:.52em;letter-spacing:.18em;margin-top:.25em}
+.act{font-family:var(--display);font-weight:600;font-size:15px;color:var(--amber);letter-spacing:.06em}
+.blurb{margin:0;font-size:14.5px;line-height:1.6;color:var(--text);max-width:52ch}
+.ctrls{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:12.5px;color:var(--muted);margin:0}
+.ctrls dt{color:var(--text);font-weight:500}
+.ctrls dd{margin:0}
+.credit{margin:0;font-size:11px;color:var(--muted);letter-spacing:.06em}
+#start{align-self:flex-start;background:var(--phosphor);color:#06100d;border:0;padding:12px 22px;font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
+#start:hover{filter:brightness(1.08)}
+#card{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+#card h2{margin:0;font-family:var(--display);font-weight:600;font-size:clamp(28px,6vw,52px);letter-spacing:.08em}
+#card p{margin:0;color:var(--muted);font-size:13px;max-width:48ch;line-height:1.6}
+#again{background:none;border:1px solid var(--phosphor);color:var(--phosphor);padding:9px 18px;font-family:var(--display);font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+
+#chap{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;opacity:0;transition:opacity .8s ease;pointer-events:none;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+#chap.on{opacity:1}
+#chap h2{margin:0;font-family:var(--display);font-weight:600;font-size:clamp(28px,6vw,52px);letter-spacing:.08em}
+#chap p{margin:0;color:var(--muted);font-size:12.5px;letter-spacing:.16em;text-transform:uppercase}
+.acts{display:flex;flex-wrap:wrap;gap:10px}
+.ghost{background:none;border:1px solid var(--phosphor);color:var(--phosphor);padding:11px 20px;font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
+#next{background:var(--phosphor);color:#06100d;border:0;padding:10px 20px;font-family:var(--display);font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+#hpWrap{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:10.5px;color:var(--muted);letter-spacing:.12em}
+#hpWrap .bar{width:110px;margin:0}
+#hpFill{width:100%}
+#hpFill.low{background:var(--danger)}
+#meter{display:flex;flex-direction:column;gap:4px}
+#meter .bar{margin:0}
+#meterFill{width:100%}
+#hurt{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(224,96,79,0) 40%,rgba(224,96,79,.6) 100%);opacity:0}
+#hit{position:fixed;right:calc(20px + env(safe-area-inset-right,0px));bottom:calc(262px + env(safe-area-inset-bottom,0px));width:80px;height:80px;border-radius:50%;border:1px solid var(--danger);background:rgba(224,96,79,.15);color:var(--danger);font-family:var(--display);font-weight:700;letter-spacing:.1em;touch-action:none}
+#joy{position:fixed;left:calc(20px + env(safe-area-inset-left,0px));bottom:calc(150px + env(safe-area-inset-bottom,0px));width:116px;height:116px;border-radius:50%;border:1px solid rgba(216,223,227,.35);background:rgba(13,18,22,.45);touch-action:none}
+#knob{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(216,223,227,.35)}
+#use{position:fixed;right:calc(20px + env(safe-area-inset-right,0px));bottom:calc(166px + env(safe-area-inset-bottom,0px));width:80px;height:80px;border-radius:50%;border:1px solid var(--amber);background:rgba(227,164,62,.15);color:var(--amber);font-family:var(--display);font-weight:700;letter-spacing:.1em;touch-action:none}
+@media (max-width:560px){
+  #obj{padding:8px 10px}
+  #objText{font-size:12.5px}
+  #clock{font-size:20px}
+  #say{font-size:14px}
+}
+@media (prefers-reduced-motion:reduce){
+  #subs.glitch #say{animation:none}
+  #fade{transition:none}
+  #chap{transition:none}
+}
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="First-person view of Citadel Station"></canvas>
+
+<div id="hud" hidden>
+  <div id="obj" class="hud-box" aria-live="polite">
+    <div class="lbl">Objective</div>
+    <div id="objText"></div>
+    <ul id="chores" hidden></ul>
+    <div id="inv" hidden></div>
+    <div id="meter" hidden><div class="lbl">Door integrity</div><div class="bar"><i id="meterFill"></i></div></div>
+  </div>
+  <div id="status" class="hud-box">
+    <div id="clock">06:00</div>
+    <div id="deck">Deck A · Residential</div>
+    <div id="hpWrap" hidden>HEALTH<div class="bar"><i id="hpFill"></i></div></div>
+    <button id="mute" type="button">Sound on</button>
+  </div>
+  <div id="cross"></div>
+  <div id="prompt" class="hud-box" hidden></div>
+  <div id="toast" class="hud-box" hidden></div>
+  <div id="subs" class="hud-box" hidden aria-live="polite">
+    <div id="who"></div>
+    <div id="say"></div>
+    <div id="choices"></div>
+    <div id="adv"></div>
+  </div>
+</div>
+
+<div id="joy" hidden><div id="knob"></div></div>
+<button id="use" type="button" hidden>USE</button>
+<button id="hit" type="button" hidden>HIT</button>
+<div id="hurt"></div>
+
+<div id="panel" hidden>
+  <div class="term" role="dialog" aria-modal="true">
+    <div id="pHead"></div>
+    <div id="pBody"></div>
+    <div id="pBtns"></div>
+  </div>
+</div>
+
+<div id="fade"></div>
+
+<div id="card" hidden>
+  <h2 id="cardH">Six weeks later.</h2>
+  <p id="cardP">End of Act 1. Act 2, Drift, picks up six weeks later: cameras that follow you, crew who don't come back, and Lena's logs.</p>
+  <div class="acts"><button id="next" type="button">Continue to Act 2</button><button id="again" type="button" class="ghost">Replay Act 1</button></div>
+</div>
+<div id="chap" aria-live="polite"><h2 id="chapH"></h2><p id="chapP"></p></div>
+
+<div id="title">
+  <div class="tcol">
+    <div class="stamp">TriOptimum · Citadel Station · Saturn orbit · 2072</div>
+    <h1>Citadel<em>Six Months</em></h1>
+    <div class="act">Act 1: Routine · Act 2: Drift · Act 3: Takeover</div>
+    <p class="blurb">You are Alex Morrow, junior systems technician on the station AI's maintenance crew. One ordinary shift: breakfast, three chores, and a work order from the Executive Wing.</p>
+    <dl class="ctrls" id="ctrls">
+      <dt>WASD / arrows</dt><dd>Move (Shift to run)</dd>
+      <dt>Mouse</dt><dd>Look (click the view to capture the mouse)</dd>
+      <dt>E</dt><dd>Use, talk, continue dialogue</dd>
+      <dt>1 2 3</dt><dd>Pick a reply</dd>
+    </dl>
+    <div class="acts"><button id="start" type="button">Play Act 1</button><button id="start2" type="button" class="ghost">Play Act 2</button><button id="start3" type="button" class="ghost">Play Act 3</button></div>
+    <p class="credit">3D models and characters by Quaternius (CC0)</p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const CELL = 2, WALLH = 3.2;
+const IS_TOUCH = matchMedia('(pointer: coarse)').matches;
+const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let ACT = 1;
+
+/* ---------- Level data (2 m cells) ----------
+ # wall  . floor  D door  J jammed door  X locked door  L lift  S start
+ Q quarters terminal  r bot terminal  O systems terminal  K breaker  V monitor
+ c server rack  Z SHODAN core  t mess table  b bunk  l lockers  n food counter
+ x crates  w workbench  k desk  H airlock control  R repair bot  W cleaning bot
+ C wall camera  B pry bar  N camera board  P Pia  M Marcus  E Lena */
+const DECKS = {
+  A: { name: 'Deck A · Residential', def: 'corridor', rows: [
+    '##########################',
+    '#b...#.......nn.#.......x#',
+    '#.S..#..t...t...#........#',
+    '#..Q.#....Pt....#....H...#',
+    '#l...#.......M..#W.......#',
+    '###D######D######J########',
+    '#.......................L#',
+    '#........................#',
+    '##########################'],
+    rooms: [[1,1,4,4,'quarters'],[1,6,4,15,'mess'],[1,17,4,24,'airlock']],
+    signs: { '5,3': 'QUARTERS 3', '5,10': 'MESS HALL', '5,17': 'A-14 · AIRLOCK 2' },
+    lights: [[2.5,2.5,0xffd9b0,.9],[8,2.6,0xf5eee2,.8],[13,2.6,0xf5eee2,.8],[20.5,2.6,0xcfe0ff,.85],[5,7,0xd8e6f2],[13,7,0xd8e6f2],[21,7,0xd8e6f2]],
+    decor: [
+      { t: 'window', r: 1, c: 7, dir: 'N', w: 4, sky: 'saturn' },
+      { t: 'window', r: 1, c: 3, dir: 'N', w: 1, sky: 'stars' },
+      { t: 'window', r: 1, c: 18, dir: 'N', w: 4, sky: 'saturnNear' },
+      { t: 'hatch', r: 2, c: 24, dir: 'E' },
+      { t: 'stencil', r: 7, c: 4, dir: 'S', text: 'DECK A', w: 2.4 },
+      { t: 'stencil', r: 7, c: 13, dir: 'S', text: 'RESIDENTIAL', w: 3.2 },
+      { t: 'stencil', r: 7, c: 21, dir: 'S', text: 'LIFT  >', w: 2.0 },
+      { t: 'poster', r: 4, c: 7, dir: 'S', lines: ['TRIOPTIMUM', 'A clean station is', 'a productive station.'], w: 1.2, h: 1.0, bg: '#2f6f68', fg: '#eef3ef' },
+      { t: 'poster', r: 3, c: 15, dir: 'E', lines: ['CREW NOTICES', '- Hydroponics tour Thu', '- Lost: blue mug (M.H.)', '- Exec Wing: RESTRICTED'], w: 1.3, h: 1.0, bg: '#e6e1d4', fg: '#2a2f33' }
+    ] },
+  B: { name: 'Deck B · Operations', def: 'corridor', rows: [
+    '##########################',
+    '#ww.....x#.C..#..k..#.k..#',
+    '#..B..R..#....#.E...#....#',
+    '#.......r#....#..O..#....#',
+    '#..N.....#..U.#.....#....#',
+    '####D#######D####D####X###',
+    '#L.......................#',
+    '#........................#',
+    '##########################'],
+    rooms: [[1,1,4,8,'workshop'],[1,10,4,13,'shaft'],[1,15,4,19,'office'],[1,21,4,24,'office']],
+    signs: { '5,4': 'WORKSHOP', '5,12': 'SHAFT 4', '5,17': 'SYSTEMS', '5,22': 'DR. L. OKAFOR' },
+    lights: [[4.5,2.6,0xf2e6cc],[11.5,2.6,0xb9cde0,.6],[17,2.6,0xeef2f6],[22.5,2.6,0xeef2f6,.7],[5,7,0xd8e6f2],[13,7,0xd8e6f2],[21,7,0xd8e6f2]],
+    decor: [
+      { t: 'stencil', r: 7, c: 3, dir: 'S', text: '<  LIFT', w: 2.0 },
+      { t: 'stencil', r: 7, c: 9, dir: 'S', text: 'DECK B', w: 2.4 },
+      { t: 'stencil', r: 7, c: 16, dir: 'S', text: 'OPERATIONS', w: 3.2 },
+      { t: 'poster', r: 3, c: 1, dir: 'W', lines: ['HEARING', 'PROTECTION', 'REQUIRED'], w: 1.0, h: .9, bg: '#2b5c9e', fg: '#ffffff' },
+      { t: 'poster', r: 3, c: 15, dir: 'W', lines: ['SHODAN MAINT · WK 41', '[x] Core temp sweep', '[ ] Shaft 4 camera', '[ ] Unit 7 diag', '[ ] Exec log audit ??'], w: 1.7, h: 1.1, bg: '#f1efe8', fg: '#23303a' }
+    ] },
+  C: { name: 'Deck C · Computer core', def: 'lobby', rows: [
+    '######################',
+    '#......#.....T.......#',
+    '#.L....D..c.c.c.c.c..#',
+    '#......#.............#',
+    '#......#..c.c.c.c.c..#',
+    '#......#...........Z.#',
+    '#......#.....K.V.....#',
+    '######################'],
+    rooms: [[1,8,6,20,'core']],
+    signs: { '2,7': 'CORE · AUTHORIZED ONLY' },
+    lights: [[3.5,3.5,0xcfe6ee,.9],[11,2,0x8fd8ff,.8],[17,2,0x8fd8ff,.8],[11,5,0x8fd8ff,.8],[17,5,0x8fd8ff,.8]],
+    decor: [
+      { t: 'stencil', r: 6, c: 3, dir: 'S', text: 'DECK C', w: 2.4 },
+      { t: 'stencil', r: 1, c: 13, dir: 'N', text: 'S.H.O.D.A.N.', w: 3.6, y: 2.35, fg: 'rgba(120,230,210,.85)' }
+    ] },
+  D: { name: 'Deck D · Medical', def: 'corridor', rows: [
+    '##########################',
+    '#m.m.m..#.......#........#',
+    '#.......#..v.v..#..y..y..#',
+    '#..m.p..#.......#........#',
+    '#.......#..v.v..#..y..y..#',
+    '####D########D#######D####',
+    '#U.......................#',
+    '#.......................U#',
+    '##########################'],
+    rooms: [[1,1,4,7,'medical'],[1,9,4,15,'lab'],[1,17,4,24,'conversion']],
+    signs: { '5,4': 'RECOVERY · BAYS 1-6', '5,13': 'BIO-RESEARCH', '5,21': 'CYBERNETICS' },
+    lights: [[4,2.6,0xd8efe8,.8],[12,2.6,0x8fd07a,.7],[21,2.6,0xff6a5a,.55],[6,7,0xd8e6f2,.8],[14,7,0xd8e6f2,.8],[22,7,0xd8e6f2,.8]],
+    decor: [
+      { t: 'stencil', r: 7, c: 4, dir: 'S', text: 'DECK D', w: 2.4 },
+      { t: 'stencil', r: 7, c: 15, dir: 'S', text: 'MEDICAL', w: 2.6 },
+      { t: 'poster', r: 6, c: 12, dir: 'N', lines: ['QUARANTINE', 'Deck D sealed by order', 'of SHODAN'], w: 1.3, h: .9, bg: '#7a1f1a', fg: '#ffffff' },
+      { t: 'poster', r: 1, c: 7, dir: 'E', lines: ['BAY 6', 'Long-term care', 'Auth: E. Diego'], w: 1.1, h: .8, bg: '#e6e1d4', fg: '#2a2f33' }
+    ] },
+  E: { name: 'Deck E · Command', def: 'lobby', rows: [
+    '######################',
+    '#U.....#.............#',
+    '#......D...G....G....#',
+    '#......#.............#',
+    '#......#....A........#',
+    '#......#.........G...#',
+    '######################'],
+    rooms: [[1,8,5,20,'comms']],
+    signs: { '2,7': 'COMMS ARRAY' },
+    lights: [[3.5,3,0xcfe0ee,.8],[12,2.5,0xffd9a0,.85],[17,2.5,0xffd9a0,.85],[14,5,0xffd9a0,.8]],
+    decor: [
+      { t: 'stencil', r: 5, c: 3, dir: 'S', text: 'DECK E', w: 2.4 },
+      { t: 'stencil', r: 1, c: 14, dir: 'N', text: 'EARTH LINK', w: 3.2, y: 2.35, fg: 'rgba(240,200,120,.8)' },
+      { t: 'window', r: 5, c: 11, dir: 'S', w: 3, sky: 'saturnNear' }
+    ] }
+};
+const BLOCK = new Set(['#','Q','r','O','K','V','c','t','b','w','k','H','R','W','l','n','x','Z','T','m','p','v','y','G','A']);
+const wc = n => n * CELL + CELL / 2;
+
+const THEME = {
+  corridor: { wall: ['#7d8992', '#4f7a99', '#3b444b'], floor: 'grate', ceil: '#3b4147', glow: 0x4b8fbf, pipes: true, guide: true },
+  quarters: { wall: ['#b3a998', '#8b6a4c', '#57504a'], floor: 'carpet', fcol: '#33404e', ceil: '#6b6762' },
+  mess:     { wall: ['#c1c5c1', '#3d8a7e', '#596160'], floor: 'tile', ceil: '#787b79' },
+  airlock:  { wall: ['#7b8185', '#c99a2e', '#3c4146'], floor: 'plate', ceil: '#3d4246', pipes: true },
+  workshop: { wall: ['#7a806e', '#c4892c', '#484c42'], floor: 'concrete', ceil: '#44473f', pipes: true },
+  shaft:    { wall: ['#596067', '#39424a', '#2b3136'], floor: 'grate', ceil: '#2a2f33', pipes: true, vpipes: true },
+  office:   { wall: ['#a5afb6', '#4e6e8e', '#58626a'], floor: 'carpettile', fcol: '#46525e', ceil: '#6b7278' },
+  lobby:    { wall: ['#4d575e', '#2f8f9f', '#2a3136'], floor: 'plate', ceil: '#2b3135', glow: 0x2f9fb0 },
+  core:     { wall: ['#262d33', '#2e9f95', '#1a1f23'], floor: 'raised', ceil: '#1c2125', glow: 0x38d0c0 },
+  medical:  { wall: ['#c6d0cf', '#4f9a8e', '#5b6766'], floor: 'tile', ceil: '#7a8482' },
+  lab:      { wall: ['#86917f', '#6a9a3a', '#3c4638'], floor: 'plate', ceil: '#3b4338', pipes: true },
+  conversion: { wall: ['#3a3436', '#8f2f2a', '#1d191a'], floor: 'grate', ceil: '#211c1d', pipes: true, glow: 0x9f2f2a },
+  comms:    { wall: ['#3b4450', '#c99a2e', '#222932'], floor: 'raised', ceil: '#1f252c', glow: 0xc99a2e }
+};
+
+/* ---------- Renderer ---------- */
+const canvas = $('#c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.75));
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+const ANISO = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x07090b);
+scene.fog = new THREE.Fog(0x07090b, 16, 48);
+const camera = new THREE.PerspectiveCamera(72, 1, 0.05, 120);
+camera.rotation.order = 'YXZ';
+const ambient = new THREE.AmbientLight(0xbfc8d0, 0.22);
+const hemi = new THREE.HemisphereLight(0xdfe7ee, 0x2a2622, 0.24);
+scene.add(ambient, hemi);
+function resize(){ const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+
+/* ---------- Procedural texture kit ---------- */
+function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function hash(a, b, c = 0){ let h = Math.imul(a + 1, 73856093) ^ Math.imul(b + 7, 19349663) ^ Math.imul(c + 13, 83492791); h = Math.imul(h ^ (h >>> 13), 1274126177); return (h ^ (h >>> 16)) >>> 0; }
+function mkTex(w, h, draw, wrap = true){
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = ANISO;
+  if (wrap) t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+function speckle(g, W, H, n, R, cols, smax = 2){ for (let i = 0; i < n; i++){ g.fillStyle = cols[i % cols.length]; const s = 1 + R() * smax; g.fillRect(R() * W, R() * H, s, s); } }
+const strHash = s => { let h = 7; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
+
+function wallTexture(th, variant){
+  const [base, band, trim] = THEME[th].wall, R = rng(strHash(th) + variant);
+  return mkTex(256, 410, (g, W, H) => {
+    const m = H / WALLH, Y = h => Math.round(H - h * m);
+    g.fillStyle = base; g.fillRect(0, 0, W, H);
+    speckle(g, W, H, 1400, R, ['rgba(255,255,255,.045)', 'rgba(0,0,0,.06)']);
+    const panel = (x, y0, w, y1) => {
+      const y = Y(y1), h = Y(y0) - Y(y1);
+      g.fillStyle = 'rgba(255,255,255,.045)'; g.fillRect(x, y, w, h);
+      g.strokeStyle = 'rgba(0,0,0,.42)'; g.lineWidth = 2; g.strokeRect(x + .5, y + .5, w, h);
+      g.strokeStyle = 'rgba(255,255,255,.15)'; g.lineWidth = 1; g.strokeRect(x + 3.5, y + 3.5, w - 6, h - 6);
+      g.fillStyle = 'rgba(0,0,0,.5)';
+      [[x + 8, y + 8], [x + w - 8, y + 8], [x + 8, y + h - 8], [x + w - 8, y + h - 8]].forEach(([a, b]) => { g.beginPath(); g.arc(a, b, 2, 0, 7); g.fill(); });
+    };
+    panel(10, 1.34, W - 20, 2.86);
+    panel(10, .38, W - 20, 1.0);
+    g.fillStyle = band; g.fillRect(0, Y(1.25), W, Y(1.07) - Y(1.25));
+    g.fillStyle = 'rgba(255,255,255,.2)'; g.fillRect(0, Y(1.25), W, 2);
+    g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, Y(1.07) - 2, W, 2);
+    g.fillStyle = trim; g.fillRect(0, Y(.32), W, H - Y(.32)); g.fillRect(0, 0, W, Y(2.95));
+    g.fillStyle = 'rgba(255,255,255,.07)'; g.fillRect(0, Y(.32), W, 2); g.fillRect(0, Y(2.95) - 2, W, 2);
+    for (let x = 16; x < W; x += 32){ g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(x, Y(.24), 14, 5); }
+    if (variant === 1){
+      const x = 70, y = Y(2.6), w = 116, h = Y(2.02) - Y(2.6);
+      g.fillStyle = '#121619'; g.fillRect(x, y, w, h);
+      for (let yy = y + 5; yy < y + h - 4; yy += 7){ g.fillStyle = 'rgba(255,255,255,.16)'; g.fillRect(x + 5, yy, w - 10, 2); }
+      g.strokeStyle = trim; g.lineWidth = 4; g.strokeRect(x, y, w, h);
+    }
+    if (variant === 2){
+      const x = 150, y = Y(1.78), w = 74, h = Y(1.44) - Y(1.78);
+      g.fillStyle = '#e6e1d3'; g.fillRect(x, y, w, h);
+      g.fillStyle = '#2a2f33'; g.font = '600 12px "IBM Plex Mono", monospace'; g.fillText('SVC ' + (120 + Math.floor(R() * 800)), x + 7, y + 16);
+      g.fillRect(x + 7, y + 24, w - 22, 3); g.fillRect(x + 7, y + 31, w - 36, 3);
+    }
+    let gr = g.createLinearGradient(0, 0, 0, Y(2.3)); gr.addColorStop(0, 'rgba(0,0,0,.4)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, Y(2.3));
+    gr = g.createLinearGradient(0, Y(.9), 0, H); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.38)'); g.fillStyle = gr; g.fillRect(0, Y(.9), W, H - Y(.9));
+    for (let i = 0; i < 4; i++){ const x = R() * W; gr = g.createLinearGradient(0, Y(1.0), 0, H); gr.addColorStop(0, 'rgba(40,30,20,0)'); gr.addColorStop(1, 'rgba(40,30,20,.14)'); g.fillStyle = gr; g.fillRect(x, Y(1.0), 2 + R() * 6, H - Y(1.0)); }
+    g.fillStyle = 'rgba(0,0,0,.4)'; g.fillRect(0, 0, 3, H); g.fillRect(W - 3, 0, 3, H);
+  });
+}
+
+function floorTexture(th){
+  const T = THEME[th], R = rng(strHash(th) + 99);
+  return mkTex(256, 256, (g, W, H) => {
+    const k = T.floor;
+    if (k === 'grate'){
+      g.fillStyle = '#3c4348'; g.fillRect(0, 0, W, H);
+      for (let y = 8, row = 0; y < H - 8; y += 14, row++) for (let x = row % 2 ? 10 : 24; x < W - 30; x += 28){
+        g.fillStyle = '#101416'; g.fillRect(x, y, 22, 6); g.fillStyle = 'rgba(255,255,255,.13)'; g.fillRect(x, y + 6, 22, 1);
+      }
+      g.strokeStyle = '#22272b'; g.lineWidth = 5; g.strokeRect(2.5, 2.5, W - 5, H - 5);
+      g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = 1; g.strokeRect(6.5, 6.5, W - 13, H - 13);
+    } else if (k === 'carpet'){
+      g.fillStyle = T.fcol; g.fillRect(0, 0, W, H);
+      speckle(g, W, H, 9000, R, ['rgba(255,255,255,.05)', 'rgba(0,0,0,.12)', 'rgba(120,150,190,.06)'], 1.5);
+      g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 2; g.strokeRect(1, 1, W - 2, H - 2);
+    } else if (k === 'tile'){
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++){ g.fillStyle = (i + j) % 2 ? '#c9c6be' : '#a3a9a7'; g.fillRect(i * 64, j * 64, 64, 64); }
+      speckle(g, W, H, 2500, R, ['rgba(0,0,0,.05)', 'rgba(255,255,255,.06)']);
+      g.fillStyle = '#6f7472'; for (let i = 0; i <= 4; i++){ g.fillRect(i * 64 - 1, 0, 2, H); g.fillRect(0, i * 64 - 1, W, 2); }
+    } else if (k === 'plate'){
+      g.fillStyle = '#62686d'; g.fillRect(0, 0, W, H);
+      for (let y = 4, row = 0; y < H; y += 16, row++) for (let x = row % 2 ? 4 : 12; x < W; x += 16){
+        g.strokeStyle = 'rgba(255,255,255,.2)'; g.lineWidth = 2; g.beginPath();
+        if ((x + y) % 32 < 16){ g.moveTo(x, y + 6); g.lineTo(x + 6, y); } else { g.moveTo(x, y); g.lineTo(x + 6, y + 6); }
+        g.stroke();
+      }
+      speckle(g, W, H, 1500, R, ['rgba(0,0,0,.08)']);
+      g.strokeStyle = '#2f3438'; g.lineWidth = 3; g.strokeRect(1.5, 1.5, W - 3, H - 3);
+    } else if (k === 'concrete'){
+      g.fillStyle = '#6a6b65'; g.fillRect(0, 0, W, H);
+      speckle(g, W, H, 7000, R, ['rgba(0,0,0,.07)', 'rgba(255,255,255,.05)', 'rgba(60,50,40,.06)'], 3);
+      g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 1; g.beginPath(); let x = R() * W, y = 0; g.moveTo(x, y); while (y < H){ x += (R() - .5) * 30; y += 10 + R() * 20; g.lineTo(x, y); } g.stroke();
+      g.fillStyle = 'rgba(0,0,0,.2)'; g.fillRect(0, 0, W, 2); g.fillRect(0, 0, 2, H);
+    } else if (k === 'carpettile'){
+      for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++){ g.fillStyle = T.fcol; g.fillRect(i * 128, j * 128, 128, 128); g.fillStyle = (i + j) % 2 ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.06)'; g.fillRect(i * 128, j * 128, 128, 128); }
+      speckle(g, W, H, 7000, R, ['rgba(255,255,255,.04)', 'rgba(0,0,0,.1)'], 1.5);
+      g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(127, 0, 2, H); g.fillRect(0, 127, W, 2);
+    } else if (k === 'raised'){
+      g.fillStyle = '#141a1e'; g.fillRect(0, 0, W, H);
+      for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++){
+        const x = i * 128 + 3, y = j * 128 + 3;
+        g.fillStyle = '#4a5560'; g.fillRect(x, y, 122, 122);
+        g.fillStyle = 'rgba(255,255,255,.08)'; g.fillRect(x, y, 122, 2);
+        g.fillStyle = '#26303a'; for (let a = 14; a < 112; a += 12) for (let b = 14; b < 112; b += 12){ g.beginPath(); g.arc(x + a, y + b, 2.4, 0, 7); g.fill(); }
+      }
+    }
+    speckle(g, W, H, 300, R, ['rgba(0,0,0,.08)'], 4);
+  });
+}
+
+function ceilTexture(th){
+  const T = THEME[th];
+  return mkTex(256, 256, (g, W, H) => {
+    g.fillStyle = T.ceil; g.fillRect(0, 0, W, H);
+    for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++){
+      const x = i * 128 + 6, y = j * 128 + 6;
+      g.fillStyle = 'rgba(255,255,255,.04)'; g.fillRect(x, y, 116, 116);
+      g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 3; g.strokeRect(x, y, 116, 116);
+      for (let a = 0; a < 6; a++){ g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(x + 20 + a * 14, y + 50, 6, 16); }
+    }
+  });
+}
+
+function textPlane(lines, w, h, o = {}){
+  const ppm = 180, W = Math.round(w * ppm), Hh = Math.round(h * ppm);
+  const t = mkTex(W, Hh, g => {
+    if (o.bg){ g.fillStyle = o.bg; g.fillRect(0, 0, W, Hh); }
+    if (o.border){ g.strokeStyle = o.border; g.lineWidth = 8; g.strokeRect(4, 4, W - 8, Hh - 8); }
+    g.fillStyle = o.fg || '#d8dfe3'; g.textBaseline = 'middle';
+    const n = lines.length, pad = W * .07;
+    if (n === 1){
+      let size = Hh * (o.size || .62);
+      g.font = `700 ${size}px "Chakra Petch", sans-serif`;
+      while (g.measureText(lines[0]).width > W - pad * 1.2 && size > 8){ size -= 2; g.font = `700 ${size}px "Chakra Petch", sans-serif`; }
+      g.textAlign = 'center'; g.fillText(lines[0], W / 2, Hh / 2 + size * .04);
+    } else {
+      const head = Hh / (n + 1.2) * 1.15, sub = Hh / (n + 1.2) * .72;
+      g.textAlign = 'left';
+      lines.forEach((L, i) => {
+        const size = i === 0 ? head : sub;
+        g.font = i === 0 ? `700 ${size}px "Chakra Petch", sans-serif` : `500 ${size}px "IBM Plex Mono", monospace`;
+        let s = size; while (g.measureText(L).width > W - pad * 2 && s > 8){ s -= 1; g.font = i === 0 ? `700 ${s}px "Chakra Petch", sans-serif` : `500 ${s}px "IBM Plex Mono", monospace`; }
+        g.fillText(L, pad, i === 0 ? Hh * .2 : Hh * .2 + head * .55 + i * sub * 1.35);
+      });
+    }
+    if (o.stencil){
+      g.globalCompositeOperation = 'destination-out';
+      const R = rng(strHash(lines.join()));
+      speckle(g, W, Hh, W * Hh / 60, R, ['rgba(0,0,0,.55)'], 3);
+      g.globalCompositeOperation = 'source-over';
+    }
+  }, false);
+  const mat = o.basic
+    ? new THREE.MeshBasicMaterial({ map: t, transparent: !o.bg })
+    : new THREE.MeshStandardMaterial({ map: t, transparent: !o.bg, roughness: .9 });
+  mat.polygonOffset = true; mat.polygonOffsetFactor = -2; mat.depthWrite = !!o.bg;
+  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+}
+
+function spaceTex(W, H, o){
+  const R = rng(W * 7 + H + (o.seed || 1));
+  const t = mkTex(W, H, g => {
+    const gr = g.createLinearGradient(0, 0, W, H); gr.addColorStop(0, '#03050a'); gr.addColorStop(1, '#0a1020'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    for (let i = 0; i < W * H / 420; i++){ const a = R(); g.fillStyle = `rgba(${200 + R() * 55 | 0},${210 + R() * 45 | 0},255,${.2 + a * .8})`; const s = a > .97 ? 2 : 1; g.fillRect(R() * W, R() * H, s, s); }
+    if (o.saturn){
+      const { x, y, r } = o.saturn, cx = x * W, cy = y * H;
+      const bands = [[1.24, 1.36, 'rgba(150,130,100,.35)'], [1.4, 1.62, 'rgba(228,208,168,.8)'], [1.72, 1.95, 'rgba(210,190,150,.62)'], [1.98, 2.1, 'rgba(180,165,135,.32)']];
+      const rings = front => { g.save(); g.translate(cx, cy); g.rotate(-.28); g.scale(1, .22);
+        bands.forEach(([a, b, col]) => { g.strokeStyle = col; g.lineWidth = (b - a) * r; g.beginPath(); g.arc(0, 0, (a + b) / 2 * r, front ? 0 : Math.PI, front ? Math.PI : Math.PI * 2); g.stroke(); });
+        g.restore(); };
+      const halo = g.createRadialGradient(cx, cy, r, cx, cy, r * 1.5); halo.addColorStop(0, 'rgba(240,220,170,.14)'); halo.addColorStop(1, 'rgba(240,220,170,0)'); g.fillStyle = halo; g.beginPath(); g.arc(cx, cy, r * 1.5, 0, 7); g.fill();
+      rings(false);
+      g.save(); g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.clip();
+      const pg = g.createLinearGradient(cx - r, cy - r, cx + r, cy + r); pg.addColorStop(0, '#f2e0b6'); pg.addColorStop(.6, '#c9a66e'); pg.addColorStop(1, '#5a4630'); g.fillStyle = pg; g.fillRect(cx - r, cy - r, 2 * r, 2 * r);
+      g.translate(cx, cy); g.rotate(-.28);
+      for (let i = -7; i <= 7; i++){ g.fillStyle = i % 2 ? 'rgba(120,90,50,.2)' : 'rgba(255,240,210,.12)'; g.fillRect(-r * 1.2, i * r / 7, r * 2.4, r / 9); }
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      const sh = g.createRadialGradient(cx - r * .45, cy - r * .45, r * .2, cx, cy, r * 1.15); sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,.78)'); g.fillStyle = sh; g.fillRect(cx - r, cy - r, 2 * r, 2 * r);
+      g.restore();
+      rings(true);
+    }
+    if (o.moon){ const mx = W * .3, my = H * .32, mr = Math.max(6, W * .04); const mg = g.createRadialGradient(mx - mr * .3, my - mr * .3, 1, mx, my, mr); mg.addColorStop(0, '#d9d6cf'); mg.addColorStop(1, '#55534f'); g.fillStyle = mg; g.beginPath(); g.arc(mx, my, mr, 0, 7); g.fill(); }
+    const rf = g.createLinearGradient(0, 0, W, H); rf.addColorStop(0, 'rgba(255,255,255,.07)'); rf.addColorStop(.3, 'rgba(255,255,255,0)'); rf.addColorStop(.55, 'rgba(255,255,255,.04)'); rf.addColorStop(.7, 'rgba(255,255,255,0)'); g.fillStyle = rf; g.fillRect(0, 0, W, H);
+  }, false);
+  return t;
+}
+
+const rackTex = mkTex(128, 256, (g, W, H) => {
+  g.fillStyle = '#161b1f'; g.fillRect(0, 0, W, H);
+  for (let y = 6; y < H - 6; y += 16){
+    g.fillStyle = '#20272c'; g.fillRect(6, y, W - 12, 13);
+    g.fillStyle = 'rgba(255,255,255,.06)'; g.fillRect(6, y, W - 12, 1);
+    for (let x = 12; x < W - 30; x += 9){ const r = Math.random(); g.fillStyle = r < .55 ? '#3fd0b0' : (r < .7 ? '#e3a43e' : '#0c1012'); g.fillRect(x, y + 5, 4, 3); }
+    g.fillStyle = '#0b0e10'; g.fillRect(W - 26, y + 3, 16, 7);
+  }
+}, false);
+const lockerTex = mkTex(128, 256, (g, W, H) => {
+  g.fillStyle = '#5b6d7b'; g.fillRect(0, 0, W, H);
+  g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 3; g.strokeRect(6, 6, W - 12, H - 12);
+  for (let y = 22; y < 62; y += 7){ g.fillStyle = '#1b2125'; g.fillRect(30, y, W - 60, 3); }
+  g.fillStyle = '#1b2125'; g.fillRect(W - 28, 120, 8, 34);
+  g.fillStyle = '#e6e1d3'; g.fillRect(34, 80, 60, 18);
+  g.fillStyle = '#2a2f33'; g.font = '600 12px "IBM Plex Mono", monospace'; g.fillText('MORROW', 40, 93);
+}, false);
+const pegTex = mkTex(256, 128, (g, W, H) => {
+  g.fillStyle = '#a58c66'; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#5c4b34'; for (let x = 8; x < W; x += 12) for (let y = 8; y < H; y += 12){ g.beginPath(); g.arc(x, y, 1.6, 0, 7); g.fill(); }
+  g.strokeStyle = 'rgba(40,30,20,.35)'; g.lineWidth = 2;
+  [[30, 30, 60, 14], [110, 26, 22, 70], [150, 40, 70, 12], [40, 70, 50, 24], [190, 70, 30, 40]].forEach(([x, y, w, h]) => g.strokeRect(x, y, w, h));
+}, false);
+const crateTex = mkTex(128, 128, (g, W, H) => {
+  g.fillStyle = '#5c6649'; g.fillRect(0, 0, W, H);
+  g.strokeStyle = '#3c4430'; g.lineWidth = 10; g.strokeRect(5, 5, W - 10, H - 10);
+  g.beginPath(); g.moveTo(10, 10); g.lineTo(W - 10, H - 10); g.stroke();
+  g.fillStyle = 'rgba(235,230,210,.8)'; g.font = '700 17px "Chakra Petch", sans-serif'; g.textAlign = 'center'; g.fillText('TRI-OPT', W / 2, H / 2 - 12);
+  g.font = '500 11px "IBM Plex Mono", monospace'; g.fillText('HYDRO 7720', W / 2, H / 2 + 22);
+});
+const hazardTex = mkTex(128, 128, (g, W, H) => {
+  g.fillStyle = '#d9a12a'; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#1d2023'; for (let i = -H; i < W; i += 32){ g.beginPath(); g.moveTo(i, H); g.lineTo(i + 16, H); g.lineTo(i + 16 + H, 0); g.lineTo(i + H, 0); g.fill(); }
+});
+const photoTex = mkTex(96, 72, (g, W, H) => {
+  g.fillStyle = '#f2efe6'; g.fillRect(0, 0, W, H);
+  const sky = g.createLinearGradient(0, 5, 0, H - 5); sky.addColorStop(0, '#1d2747'); sky.addColorStop(1, '#5b4a62'); g.fillStyle = sky; g.fillRect(5, 5, W - 10, H - 10);
+  g.fillStyle = '#26211f'; g.fillRect(14, 30, 46, 32); g.beginPath(); g.moveTo(10, 32); g.lineTo(37, 14); g.lineTo(64, 32); g.fill();
+  g.fillStyle = '#ffd27a'; g.beginPath(); g.arc(44, 44, 3, 0, 7); g.fill();
+  g.fillStyle = 'rgba(255,210,120,.25)'; g.beginPath(); g.arc(44, 44, 9, 0, 7); g.fill();
+  g.fillStyle = '#1a1716'; [[68, 40], [76, 44], [84, 42]].forEach(([x, y]) => { g.beginPath(); g.arc(x, y, 3, 0, 7); g.fill(); g.fillRect(x - 3, y + 3, 6, 15); });
+}, false);
+function screenTex(lines, color = '#86dcc6', bg = '#08110f'){
+  return mkTex(256, 256, (g, s) => { g.fillStyle = bg; g.fillRect(0, 0, s, s); g.fillStyle = color; g.font = '500 17px "IBM Plex Mono", monospace'; lines.forEach((l, i) => g.fillText(l, 14, 34 + i * 26)); for (let y = 0; y < s; y += 3){ g.fillStyle = 'rgba(0,0,0,.2)'; g.fillRect(0, y, s, 1); } }, false);
+}
+function label(text, color = '#d8dfe3'){
+  const c = document.createElement('canvas'); c.width = 512; c.height = 96; const g = c.getContext('2d');
+  g.font = '600 40px "Chakra Petch", sans-serif'; const w = Math.min(500, g.measureText(text).width + 40);
+  g.fillStyle = 'rgba(10,14,18,.78)'; g.fillRect((512 - w) / 2, 14, w, 64);
+  g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 47);
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false }));
+  sp.scale.set(2.0, 0.375, 1); return sp;
+}
+
+/* ---------- Materials ---------- */
+const std = (color, rough = .8, metal = 0, extra = {}) => new THREE.MeshStandardMaterial(Object.assign({ color, roughness: rough, metalness: metal }, extra));
+const M = {
+  trim: std(0x252b2f, .6, .15), metalDark: std(0x3a4045, .6, .35), metalMid: std(0x7b8186, .5, .45), metalLight: std(0xb3b8bb, .45, .4),
+  plastic: std(0xd9dbd6, .55), rubber: std(0x1c2023, .9), fabricBlue: std(0x3b5675, .95), fabricWhite: std(0xdcd8cf, .95), cushion: std(0xc9c0b0, .95),
+  teal: std(0x2f7d74, .8), red: std(0x8f2f24, .6, .2), door: std(0x9aa0a4, .5, .4), stripe: std(0xe3a43e, .6, 0, { emissive: 0x5a3a0c }),
+  glass: new THREE.MeshStandardMaterial({ color: 0x9fd6e6, transparent: true, opacity: .2, roughness: .1, metalness: .2, depthWrite: false }),
+  crate: std(0xffffff, .85, 0, { map: crateTex }), hazard: std(0xffffff, .7, 0, { map: hazardTex }), locker: std(0xffffff, .55, .3, { map: lockerTex }),
+  peg: std(0xffffff, .9, 0, { map: pegTex }), photo: std(0xffffff, .6, 0, { map: photoTex }),
+  rackFace: std(0xffffff, .5, .2, { map: rackTex, emissive: 0xffffff, emissiveMap: rackTex, emissiveIntensity: .75 }),
+  pipeGray: std(0x6b7378, .4, .6), pipeRed: std(0x8a3b2c, .5, .3), pipeTeal: std(0x2e6f73, .5, .3),
+  wood: std(0x6f5a44, .8)
+};
+const lampMat = c => new THREE.MeshBasicMaterial({ color: c });
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const bx = (p, w, h, d, m, x, y, z) => { const o = box(w, h, d, m); o.position.set(x, y, z); p.add(o); return o; };
+const cy = (p, rt, rb, h, m, x, y, z, seg = 16) => { const o = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), m); o.position.set(x, y, z); p.add(o); return o; };
+const SKY = {
+  saturn: spaceTex(1024, 200, { saturn: { x: .64, y: .55, r: 58 }, seed: 3 }),
+  saturnNear: spaceTex(1024, 200, { saturn: { x: .38, y: .62, r: 96 }, seed: 5 }),
+  stars: spaceTex(256, 226, { moon: true, seed: 9 })
+};
+
+/* ---------- Model kit: Quaternius Modular Sci-Fi MegaKit + Sci-Fi Essentials Kit (CC0) ---------- */
+const KIT = { ready: false, parts: {}, box: {}, clips: [] };
+const WALL_KIT = { corridor: 'WallBand', airlock: 'WallBand', workshop: 'WallBand', shaft: 'WallBand', lobby: 'WallBand', core: 'WallBand', lab: 'WallBand', conversion: 'WallBand', comms: 'WallBand',
+  quarters: 'WallWhite', mess: 'WallWhite', office: 'WallWhite', medical: 'WallWhite' };
+const FLOOR_KIT = { corridor: 'FloorMetal', airlock: 'FloorSquares', workshop: 'FloorSquares', shaft: 'FloorMetal2', lobby: 'FloorDark', core: 'FloorDark', lab: 'FloorSquares', conversion: 'FloorMetal2', comms: 'FloorDark' };
+function loadKit(){
+  return new Promise(res => {
+    if (!THREE.GLTFLoader) return res(false);
+    new THREE.GLTFLoader().load('models/citadel-models.json', g => {
+      g.scene.updateMatrixWorld(true);
+      g.scene.children.forEach(n => { KIT.parts[n.name] = n; KIT.box[n.name] = new THREE.Box3().setFromObject(n); });
+      g.scene.traverse(o => {
+        if (!o.isMesh) return;
+        (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => {
+          if (m.metalness !== undefined) m.metalness = Math.min(m.metalness, .25);
+          if (m.roughness !== undefined) m.roughness = Math.max(m.roughness, .45);
+          ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap'].forEach(k => { if (m[k]) m[k].anisotropy = ANISO; });
+        });
+      });
+      KIT.clips = g.animations; KIT.ready = !!KIT.parts.WallBand; res(KIT.ready);
+    }, undefined, () => res(false));
+  });
+}
+function kitClone(name, x, y, z, ry = 0, s = 1){ const o = KIT.parts[name].clone(true); o.position.set(x, y, z); o.rotation.y = ry; o.scale.setScalar(s); return o; }
+function kitMatrix(x, y, z, ry, sx, sy, sz){ return new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, ry, 0)), new THREE.Vector3(sx, sy, sz)); }
+class KitBatch {
+  constructor(){ this.map = new Map(); }
+  add(name, m){ if (!this.map.has(name)) this.map.set(name, []); this.map.get(name).push(m); }
+  flush(group){
+    const tmp = new THREE.Matrix4();
+    for (const [name, mats] of this.map){
+      KIT.parts[name].traverse(o => {
+        if (!o.isMesh) return;
+        const im = new THREE.InstancedMesh(o.geometry, o.material, mats.length);
+        mats.forEach((m, i) => { tmp.multiplyMatrices(m, o.matrixWorld); im.setMatrixAt(i, tmp); });
+        im.frustumCulled = false;
+        group.add(im);
+      });
+    }
+  }
+}
+function wallMatrix(part, cx, cz, n, span){
+  const bb = KIT.box[part], h = bb.max.y - bb.min.y, len = bb.max.z - bb.min.z, zc = (bb.max.z + bb.min.z) / 2, front = bb.max.x;
+  const sz = span / len, th = Math.atan2(-n[2], n[0]);
+  const ux = Math.sin(th), uz = Math.cos(th);
+  return kitMatrix(cx - n[0] * front - ux * zc * sz, 0, cz - n[2] * front - uz * zc * sz, th, 1, WALLH / h, sz);
+}
+function placeKitWalls(kb, faces){
+  const runs = new Map();
+  for (const f of faces){
+    const ns = f.dir === 'N' || f.dir === 'S';
+    f.along = ns ? f.c : f.r;
+    const key = f.dir + ':' + (ns ? f.r : f.c) + ':' + f.th;
+    if (!runs.has(key)) runs.set(key, []);
+    runs.get(key).push(f);
+  }
+  for (const list of runs.values()){
+    list.sort((a, b) => a.along - b.along);
+    for (let i = 0; i < list.length; i++){
+      const a = list[i], b = list[i + 1], part = WALL_KIT[a.th];
+      if (b && b.along === a.along + 1){ kb.add(part, wallMatrix(part, (a.cx + b.cx) / 2, (a.cz + b.cz) / 2, a.n, 4)); i++; }
+      else kb.add(part, wallMatrix(part, a.cx, a.cz, a.n, 2));
+    }
+  }
+}
+function kitDrone(){
+  const g = THREE.SkeletonUtils ? THREE.SkeletonUtils.clone(KIT.parts.EyeDrone) : KIT.parts.EyeDrone.clone(true);
+  g.position.set(0, 0, 0); g.scale.setScalar(.55);
+  const w = new THREE.Group(); w.add(g);
+  const mixer = new THREE.AnimationMixer(g), act = {};
+  KIT.clips.filter(c => c.name.startsWith('EyeDrone:')).forEach(c => { act[c.name.slice(9)] = mixer.clipAction(c); });
+  if (act.Idle) act.Idle.play();
+  w.userData.mixer = mixer; w.userData.act = act;
+  return w;
+}
+
+/* ---------- Crew models: Quaternius Zombie Apocalypse Kit characters (CC0), stand-ins until custom crew exist ---------- */
+const CREW = { ready: false, parts: {}, box: {}, clips: [], list: [] };
+const ROLE = {
+  pia:      { base: 'Lis', height: 1.74, swap: { '#4c3a21': '#3f7f80', '#bd8e30': '#5aa3a0', '#466469': '#2f5f61', '#225385': '#3a2a20' } },
+  lena:     { base: 'Lis', height: 1.78, swap: { '#4c3a21': '#6b4a32', '#bd8e30': '#8a6a48', '#466469': '#2f3439', '#225385': '#141010', '#c09264': '#8a6446' } },
+  marcus:   { base: 'Shaun', height: 1.88, swap: { '#4c3a21': '#2f3539', '#5f4009': '#3a4247', '#a58a3b': '#4a5258', '#466469': '#262b2f', '#946529': '#2a2f33', '#923c12': '#6b6660' } },
+  guard:    { base: 'Matt', height: 1.84, swap: { '#af6c1c': '#2f3539', '#4e694b': '#262b2f', '#466469': '#262b2f', '#af8d68': '#3a4247' } },
+  prisoner: { base: 'Sam', height: 1.8, swap: { '#504c43': '#8a8478', '#af6c1c': '#8a8478', '#ac741d': '#5a554f', '#4c3a21': '#5a554f' } },
+  stranger: { base: 'Sam', height: 1.8, swap: {} },
+  diego:    { base: 'Matt', height: 1.86, swap: { '#af6c1c': '#26292c', '#4e694b': '#26292c', '#466469': '#26292c', '#312515': '#8a8a8a', '#af8d68': '#3a3d40' } },
+  cyborg:   { base: 'Shaun', height: 2.02, swap: { '#c09264': '#8d9499', '#4c3a21': '#22262a', '#5f4009': '#2a2e31', '#a58a3b': '#5a6066', '#466469': '#1d2023', '#946529': '#1d2023', '#923c12': '#3a3d40' } },
+  mutantA:  { base: 'ZombieBasic', height: 1.72, swap: { '#769751': '#8a9a78', '#979770': '#4f6a6b', '#63723f': '#6f7d60' } },
+  mutantB:  { base: 'ZombieChubby', height: 1.78, swap: { '#5f6397': '#7d8a72' } },
+  mutantC:  { base: 'ZombieBasic', height: 1.66, swap: { '#769751': '#93a083', '#979770': '#5a5248', '#63723f': '#78846a' } }
+};
+function loadCrew(){
+  return new Promise(res => {
+    if (!THREE.GLTFLoader || !THREE.SkeletonUtils) return res(false);
+    new THREE.GLTFLoader().load('models/citadel-crew.json', g => {
+      g.scene.updateMatrixWorld(true);
+      const BODY = { Lis: 'Lis', Shaun: 'Shaun', Sam: 'Sam', Matt: 'Matt', ZombieBasic: 'Zombie', ZombieChubby: 'Zombie_Chubby' };
+      g.scene.children.forEach(n => {
+        const k = n.name.replace('Char_', ''); CREW.parts[k] = n;
+        n.traverse(o => { if (o !== n) o.name = o.name.replace(/_\d+$/, ''); });
+        let body = null; n.traverse(o => { if (o.isMesh && o.name === BODY[k]) body = o; });
+        CREW.box[k] = new THREE.Box3().setFromObject(body || n);
+      });
+      CREW.clips = g.animations; CREW.ready = !!CREW.parts.Lis; res(CREW.ready);
+    }, undefined, () => res(false));
+  });
+}
+const hexRgb = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const roleTex = {};
+function roleTexture(role, src){
+  if (roleTex[role]) return roleTex[role];
+  const img = src.image, c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  const swap = Object.entries(ROLE[role].swap).map(([a, b]) => [hexRgb(a), hexRgb(b)]);
+  if (swap.length){
+    const d = g.getImageData(0, 0, c.width, c.height), p = d.data;
+    for (let i = 0; i < p.length; i += 4) for (const [s, t] of swap){
+      if (Math.abs(p[i] - s[0]) < 5 && Math.abs(p[i + 1] - s[1]) < 5 && Math.abs(p[i + 2] - s[2]) < 5){ p[i] = t[0]; p[i + 1] = t[1]; p[i + 2] = t[2]; break; }
+    }
+    g.putImageData(d, 0, 0);
+  }
+  const t = new THREE.CanvasTexture(c); t.flipY = false; t.encoding = THREE.sRGBEncoding;
+  t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; t.generateMipmaps = false;
+  return roleTex[role] = t;
+}
+function playAnim(g, name){
+  const u = g.userData; if (!u.act) return;
+  const a = u.act[name]; if (!a || u.cur === a) return;
+  a.reset(); a.setLoop(THREE.LoopRepeat, Infinity); a.clampWhenFinished = false; a.fadeIn(.2).play();
+  if (u.cur) u.cur.fadeOut(.2);
+  u.cur = a; u.loop = name;
+}
+function playOnce(g, name, back, clamp = false){
+  const u = g.userData; if (!u.act) return;
+  const a = u.act[name]; if (!a) return;
+  clearTimeout(u.onceT); u.onceBusy = true;
+  a.reset(); a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = clamp; a.fadeIn(.1).play();
+  if (u.cur && u.cur !== a) u.cur.fadeOut(.1);
+  u.cur = a;
+  if (back) u.onceT = setTimeout(() => { u.onceBusy = false; if (u.cur === a){ u.cur = null; playAnim(g, back); } }, a.getClip().duration * 1000 - 120);
+}
+function makePerson(role, name, tagColor){
+  const def = ROLE[role], base = CREW.parts[def.base], box = CREW.box[def.base];
+  const m = THREE.SkeletonUtils.clone(base); m.position.set(0, 0, 0);
+  const mats = new Map(); let mat = null;
+  m.traverse(o => {
+    if (!o.isMesh) return;
+    o.frustumCulled = false;
+    if (!mats.has(o.material)){ const c = o.material.clone(); if (c.map) c.map = roleTexture(role, o.material.map); c.metalness = 0; c.roughness = .85; mats.set(o.material, c); }
+    o.material = mats.get(o.material); mat = mat || o.material;
+  });
+  const gun = m.getObjectByName('Pistol'); if (gun) gun.visible = false;
+  const s = def.height * 1.28 / (box.max.y - box.min.y);
+  m.scale.setScalar(s); m.position.y = -box.min.y * s;
+  const g = new THREE.Group(); g.add(m);
+  const mixer = new THREE.AnimationMixer(m), fam = def.base.startsWith('Zombie') ? 'Zombie:' : 'Human:', act = {};
+  CREW.clips.filter(c => c.name.startsWith(fam)).forEach(c => { act[c.name.slice(fam.length)] = mixer.clipAction(c); });
+  g.userData = { mixer, act, cur: null, torso: new THREE.Object3D(), skin: mat, cloth: new THREE.MeshBasicMaterial(), gun, height: def.height, crew: true };
+  if (act.Idle){ act.Idle.time = Math.random() * act.Idle.getClip().duration; }
+  playAnim(g, 'Idle');
+  if (name){ const l = label(name, tagColor); l.position.y = def.height * 1.28 + .12; g.add(l); }
+  CREW.list.push(g);
+  return g;
+}
+const SPEAKER_NPC = { PIA: 'pia', LENA: 'lena', MARCUS: 'marcus' };
+
+/* ---------- Geometry helpers ---------- */
+const DIRS = {
+  N: { dr: -1, dc: 0, n: [0, 0, 1], u: [1, 0, 0], o: (x0, x1, z0, z1) => [x0, z0] },
+  S: { dr: 1, dc: 0, n: [0, 0, -1], u: [-1, 0, 0], o: (x0, x1, z0, z1) => [x1, z1] },
+  W: { dr: 0, dc: -1, n: [1, 0, 0], u: [0, 0, -1], o: (x0, x1, z0, z1) => [x0, z1] },
+  E: { dr: 0, dc: 1, n: [-1, 0, 0], u: [0, 0, 1], o: (x0, x1, z0, z1) => [x1, z0] }
+};
+function facePos(r, c, dir, along, out){
+  const d = DIRS[dir], x0 = c * CELL, z0 = r * CELL, [ox, oz] = d.o(x0, x0 + CELL, z0, z0 + CELL);
+  return { x: ox + d.u[0] * along + d.n[0] * out, z: oz + d.u[2] * along + d.n[2] * out, ry: Math.atan2(d.n[0], d.n[2]) };
+}
+function mountOnFace(deck, obj, r, c, dir, along, y, out = .03){ const p = facePos(r, c, dir, along, out); obj.position.set(p.x, y, p.z); obj.rotation.y = p.ry; deck.group.add(obj); return obj; }
+class Batch {
+  constructor(mat){ this.mat = mat; this.p = []; this.n = []; this.uv = []; this.i = []; }
+  quad(o, u, v, w, h){
+    const b = this.p.length / 3, nx = u[1] * v[2] - u[2] * v[1], ny = u[2] * v[0] - u[0] * v[2], nz = u[0] * v[1] - u[1] * v[0];
+    [[0, 0], [w, 0], [w, h], [0, h]].forEach(([a, c]) => { this.p.push(o[0] + u[0] * a + v[0] * c, o[1] + u[1] * a + v[1] * c, o[2] + u[2] * a + v[2] * c); this.n.push(nx, ny, nz); });
+    this.uv.push(0, 0, 1, 0, 1, 1, 0, 1); this.i.push(b, b + 1, b + 2, b, b + 2, b + 3);
+  }
+  mesh(){
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(this.p, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(this.n, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(this.uv, 2));
+    g.setIndex(this.i); return new THREE.Mesh(g, this.mat);
+  }
+}
+const matCache = {};
+const cached = (k, mk) => matCache[k] || (matCache[k] = mk());
+function themeAt(deck, r, c){ for (const rm of deck.rooms) if (r >= rm[0] && r <= rm[2] && c >= rm[1] && c <= rm[3]) return rm[4]; return deck.def; }
+function instanced(group, geo, mat, list){
+  if (!list.length) return;
+  const m = new THREE.InstancedMesh(geo, mat, list.length), o = new THREE.Object3D();
+  list.forEach((a, i) => { o.position.set(a[0], a[1], a[2]); o.rotation.set(0, a[3], 0); o.updateMatrix(); m.setMatrixAt(i, o.matrix); });
+  group.add(m); return m;
+}
+
+/* The station shell: floors, ceilings and wall faces built per room, plus trim, pipes and light strips */
+function buildShell(deck){
+  const { grid, group } = deck, batches = new Map();
+  const get = (k, mk) => { if (!batches.has(k)) batches.set(k, new Batch(mk())); return batches.get(k); };
+  const L = { base: [], corn: [], pil: [], guide: [], pipeA: [], pipeB: [], pipeC: [], vpipe: [], strip: [] }, glows = {};
+  const kb = new KitBatch(), kitFaces = [];
+  for (let r = 0; r < deck.H; r++) for (let c = 0; c < deck.W; c++){
+    if (grid[r][c] === '#') continue;
+    const th = themeAt(deck, r, c), T = THEME[th];
+    const x0 = c * CELL, x1 = x0 + CELL, z0 = r * CELL, z1 = z0 + CELL;
+    if (KIT.ready && FLOOR_KIT[th]) kb.add(FLOOR_KIT[th], kitMatrix(x0 + CELL / 2, 0, z0 + CELL / 2, 0, .5, 1, .5)); else get('f' + th, () => cached('f' + th, () => std(0xffffff, T.floor === 'grate' || T.floor === 'plate' ? .55 : .92, T.floor === 'grate' || T.floor === 'plate' ? .35 : 0, { map: floorTexture(th) }))).quad([x0, 0, z1], [1, 0, 0], [0, 0, -1], CELL, CELL);
+    get('c' + th, () => cached('c' + th, () => std(0xffffff, .95, 0, { map: ceilTexture(th) }))).quad([x0, WALLH, z0], [1, 0, 0], [0, 0, 1], CELL, CELL);
+    if (th === 'corridor' && c % 4 === 2 && grid[r + 1] && grid[r + 1][c] === '#') L.strip.push([x0 + CELL / 2, WALLH - .03, z0, 0]);
+    for (const dk in DIRS){
+      const d = DIRS[dk], nb = grid[r + d.dr] && grid[r + d.dr][c + d.dc];
+      if (nb !== '#') continue;
+      const h = hash(r, c, dk.charCodeAt(0)), variant = h % 7 === 0 ? 1 : (h % 11 === 0 ? 2 : 0);
+      const [ox, oz] = d.o(x0, x1, z0, z1);
+      const useKit = KIT.ready && WALL_KIT[th];
+      if (useKit) kitFaces.push({ dir: dk, r, c, th, cx: ox + d.u[0] * CELL / 2, cz: oz + d.u[2] * CELL / 2, n: d.n }); else get('w' + th + variant, () => cached('w' + th + variant, () => std(0xffffff, .82, .08, { map: wallTexture(th, variant) }))).quad([ox, 0, oz], d.u, [0, 1, 0], CELL, WALLH);
+      const cx = ox + d.u[0] * CELL / 2, cz = oz + d.u[2] * CELL / 2, ry = Math.atan2(d.n[0], d.n[2]), n = d.n;
+      const at = (off, y) => [cx + n[0] * off, y, cz + n[2] * off, ry];
+      if (!useKit){ L.base.push(at(.03, .08)); L.corn.push(at(.05, WALLH - .07)); }
+      if (!useKit) L.pil.push([ox + n[0] * .05, WALLH / 2, oz + n[2] * .05, ry]);
+      if (T.glow) (glows[T.glow] = glows[T.glow] || []).push(at(.04, 1.16));
+      if (T.guide) L.guide.push(at(.42, .006));
+      if (T.pipes){ L.pipeA.push(at(.24, 2.86)); L.pipeB.push(at(.46, 2.97)); if (th !== 'airlock') L.pipeC.push(at(.42, 2.72)); }
+      if (T.vpipes && h % 2) L.vpipe.push([cx + n[0] * .2 + d.u[0] * .4, WALLH / 2, cz + n[2] * .2 + d.u[2] * .4, ry]);
+    }
+  }
+  if (KIT.ready){ placeKitWalls(kb, kitFaces); kb.flush(group); }
+  batches.forEach(b => group.add(b.mesh()));
+  instanced(group, new THREE.BoxGeometry(CELL, .16, .06), M.trim, L.base);
+  instanced(group, new THREE.BoxGeometry(CELL, .14, .1), M.trim, L.corn);
+  instanced(group, new THREE.BoxGeometry(.16, WALLH, .1), M.trim, L.pil);
+  instanced(group, new THREE.BoxGeometry(CELL - .1, .004, .05), lampMat(0x8f6a26), L.guide);
+  const pipeGeo = (r) => new THREE.CylinderGeometry(r, r, CELL, 10).rotateZ(Math.PI / 2);
+  instanced(group, pipeGeo(.075), M.pipeGray, L.pipeA);
+  instanced(group, pipeGeo(.045), M.pipeRed, L.pipeB);
+  instanced(group, pipeGeo(.05), M.pipeTeal, L.pipeC);
+  instanced(group, new THREE.CylinderGeometry(.06, .06, WALLH, 10), M.pipeGray, L.vpipe);
+  instanced(group, new THREE.BoxGeometry(1.4, .04, .16), deck.stripMat, L.strip);
+  for (const col in glows){
+    const m = new THREE.MeshBasicMaterial({ color: +col });
+    deck.glowMats.push({ mat: m, base: new THREE.Color(+col) });
+    instanced(group, new THREE.BoxGeometry(CELL - .3, .035, .02), m, glows[col]);
+  }
+}
+
+function addWindow(deck, r, c, dir, w, tex){
+  const g = new THREE.Group(), W = w * CELL - .3, H = 1.5;
+  const glass = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map: tex, fog: false })); glass.position.z = .02; g.add(glass);
+  bx(g, W + .28, .16, .18, M.trim, 0, H / 2 + .08, .07); bx(g, W + .28, .16, .18, M.trim, 0, -H / 2 - .08, .07);
+  bx(g, .16, H + .32, .18, M.trim, -W / 2 - .08, 0, .07); bx(g, .16, H + .32, .18, M.trim, W / 2 + .08, 0, .07);
+  for (let i = 1; i < w; i++) bx(g, .1, H, .12, M.trim, -W / 2 + i * (W / w), 0, .06);
+  bx(g, W + .34, .05, .3, M.metalLight, 0, -H / 2 - .18, .15);
+  mountOnFace(deck, g, r, c, dir, w * CELL / 2, 1.72, .02);
+}
+function addHatch(deck, r, c, dir){
+  const g = new THREE.Group();
+  const frame = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 2.1), M.hazard); frame.position.z = .01; g.add(frame);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(.86, .13, 12, 40), M.metalMid); ring.position.z = .1; g.add(ring);
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(.76, .76, .12, 40), M.door); disc.rotation.x = Math.PI / 2; disc.position.z = .08; g.add(disc);
+  const wheel = new THREE.Mesh(new THREE.TorusGeometry(.32, .04, 8, 28), M.metalDark); wheel.position.z = .2; g.add(wheel);
+  for (let i = 0; i < 3; i++){ const s = bx(g, .64, .05, .05, M.metalDark, 0, 0, .2); s.rotation.z = i * Math.PI / 3; }
+  bx(g, .2, .2, .08, lampMat(0xc0483a), 0, 1.2, .05);
+  mountOnFace(deck, g, r, c, dir, CELL / 2, 1.3, .02);
+  const zone = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.2), M.hazard); zone.rotation.x = -Math.PI / 2;
+  const p = facePos(r, c, dir, CELL / 2, .65); zone.position.set(p.x, .012, p.z); zone.rotation.z = p.ry; deck.group.add(zone);
+}
+
+/* ---------- World build ---------- */
+const decks = {};
+const R = { screens: [] };
+let cur = null;
+
+function faceRot(grid, r, c){
+  const free = ch => ch && !BLOCK.has(ch) && ch !== 'D' && ch !== 'J' && ch !== 'X';
+  if (free((grid[r + 1] || [])[c])) return 0;
+  if (free((grid[r - 1] || [])[c])) return Math.PI;
+  if (free(grid[r][c + 1])) return Math.PI / 2;
+  return -Math.PI / 2;
+}
+function propGroup(deck, r, c){ const g = new THREE.Group(); g.position.set(wc(c), 0, wc(r)); g.rotation.y = faceRot(deck.grid, r, c); deck.group.add(g); return g; }
+
+function makeNPC(name, body, visor, tagColor, hair = 0x2b2420, skinCol = 0xa98f7c){
+  const g = new THREE.Group();
+  const cloth = std(body, .85), pants = std(new THREE.Color(body).multiplyScalar(.55).getHex(), .9), skin = std(skinCol, .8);
+  cy(g, .085, .075, .84, pants, -.11, .42, 0, 10); cy(g, .085, .075, .84, pants, .11, .42, 0, 10);
+  const torso = cy(g, .25, .2, .74, cloth, 0, 1.2, 0, 16);
+  bx(g, .5, .1, .26, cloth, 0, 1.53, 0);
+  [-1, 1].forEach(s => { const a = cy(g, .06, .05, .7, cloth, s * .31, 1.18, 0, 8); a.rotation.z = s * .07; const hd = new THREE.Mesh(new THREE.SphereGeometry(.055, 8, 6), skin); hd.position.set(s * .335, .8, 0); g.add(hd); });
+  cy(g, .07, .07, .12, skin, 0, 1.62, 0, 8);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(.17, 18, 14), skin); head.position.y = 1.79; g.add(head);
+  const hr = new THREE.Mesh(new THREE.SphereGeometry(.178, 18, 10, 0, Math.PI * 2, 0, Math.PI * .55), std(hair, .95)); hr.position.y = 1.8; hr.rotation.x = -.25; g.add(hr);
+  bx(g, .22, .05, .04, new THREE.MeshBasicMaterial({ color: visor }), 0, 1.8, .155);
+  if (name){ const l = label(name, tagColor); l.position.y = 2.25; g.add(l); }
+  g.userData.torso = torso; g.userData.skin = skin; g.userData.cloth = cloth;
+  return g;
+}
+
+function buildDeck(key){
+  const D = DECKS[key];
+  const grid = D.rows.map(r => r.split(''));
+  const H = grid.length, W = grid[0].length;
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  const deck = { key, name: D.name, grid, W, H, group: g, doors: [], doorAt: {}, inter: [], lights: [], npcs: [], rooms: D.rooms, def: D.def,
+    stripMat: new THREE.MeshBasicMaterial({ color: 0xdfe9f2 }), glowMats: [] };
+  decks[key] = deck;
+
+  for (let r = 0; r < H; r++) for (let c = 0; c < W; c++){
+    const ch = grid[r][c], x = wc(c), z = wc(r);
+    switch (ch){
+      case 'S': deck.start = { x, z }; grid[r][c] = '.'; break;
+      case 'D': case 'J': case 'X': makeDoor(deck, r, c, ch, D.signs && D.signs[r + ',' + c]); break;
+      case 'L': {
+        grid[r][c] = '.';
+        const lg = new THREE.Group(); lg.position.set(x, 0, z); g.add(lg);
+        cy(lg, .92, .96, .08, M.metalMid, 0, .04, 0, 32);
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(.8, .025, 8, 48), lampMat(0x5aa7e0)); ring.rotation.x = Math.PI / 2; ring.position.y = .09; lg.add(ring);
+        [-1, 1].forEach(s => { bx(lg, .14, WALLH, .14, M.trim, 0, WALLH / 2, s * .95); bx(lg, .05, 2.2, .04, lampMat(0x5aa7e0), 0, 1.3, s * .87); });
+        const lb = label('LIFT', '#9fd0f2'); lb.position.set(x, 2.6, z); g.add(lb);
+        deck.lift = { x, z };
+        deck.inter.push({ x, z, r: 1.6, label: () => 'Call the lift', act: useLift });
+        break; }
+      case 't': {
+        const p = propGroup(deck, r, c), Rn = rng(hash(r, c, 5));
+        cy(p, .1, .2, .74, M.metalDark, 0, .37, 0, 12); cy(p, .34, .38, .04, M.metalDark, 0, .02, 0, 16);
+        bx(p, 1.7, .05, 1.0, M.plastic, 0, .765, 0); bx(p, 1.74, .04, 1.04, M.trim, 0, .725, 0);
+        [[-.5, -.8], [.5, -.8], [-.5, .8], [.5, .8]].forEach(([sx, sz]) => { cy(p, .03, .03, .44, M.metalDark, sx, .22, sz, 8); cy(p, .19, .19, .06, M.teal, sx, .47, sz, 16); });
+        for (let i = 0; i < 2; i++) if (Rn() < .8){ const tx = (Rn() - .5) * 1.0, tz = (Rn() - .5) * .45; bx(p, .38, .02, .28, M.metalLight, tx, .8, tz); if (KIT.ready) p.add(kitClone('Mug', tx + .11, .81, tz - .05, tx * 9, 1)); else cy(p, .045, .04, .11, M.plastic, tx + .11, .86, tz - .05, 10); bx(p, .14, .045, .1, M.wood, tx - .06, .83, tz + .03); }
+        break; }
+      case 'b': {
+        const p = propGroup(deck, r, c);
+        bx(p, 1.9, .3, 1.0, M.metalMid, 0, .22, -.45); bx(p, 1.82, .18, .92, M.fabricWhite, 0, .46, -.45);
+        bx(p, 1.25, .07, .96, M.fabricBlue, .28, .57, -.45); bx(p, .44, .13, .6, M.cushion, -.66, .61, -.45);
+        bx(p, 1.9, .05, .3, M.metalMid, 0, 1.62, -.84); bx(p, .3, .2, .2, M.red, .55, 1.75, -.85); bx(p, .16, .26, .2, M.fabricBlue, .25, 1.78, -.85);
+        bx(p, .22, .06, .12, lampMat(0xffd9a0), -.6, 1.56, -.8);
+        const ph = new THREE.Mesh(new THREE.PlaneGeometry(.36, .27), M.photo); ph.position.set(.45, 1.22, -.965); p.add(ph);
+        break; }
+      case 'l': {
+        const p = propGroup(deck, r, c);
+        if (KIT.ready) [-.38, .38].forEach(sx => p.add(kitClone('Locker', sx, 0, -.8, 0, .75)));
+        else { [-.3, .3].forEach(sx => bx(p, .56, 2.0, .55, M.locker, sx, 1.0, -.66)); bx(p, 1.18, .06, .6, M.trim, 0, 2.03, -.66); }
+        bx(p, 1.0, .35, .4, M.fabricBlue, 0, .18, .2);
+        break; }
+      case 'n': {
+        const p = propGroup(deck, r, c);
+        bx(p, 1.98, .92, .8, M.metalLight, 0, .46, -.55); bx(p, 2.0, .05, .86, M.trim, 0, .95, -.55);
+        bx(p, 1.9, .34, .02, M.glass, 0, 1.15, -.2);
+        [-.5, .5].forEach(sx => { bx(p, .7, .8, .35, M.plastic, sx, 1.62, -.82); bx(p, .5, .12, .01, lampMat(0x6fd1c0), sx, 1.82, -.64); bx(p, .12, .1, .1, M.metalDark, sx, 1.27, -.66); });
+        if (grid[r][c + 1] === 'n'){ const menu = textPlane(['TODAY', 'Protein loaf, gravy', 'Hydroponic greens', 'Coffee (real, 1 cup)'], 2.4, .8, { bg: '#16201f', fg: '#bfeee2', basic: true }); menu.position.set(1, 2.5, -.96); p.add(menu); }
+        break; }
+      case 'x': {
+        const p = propGroup(deck, r, c);
+        if (KIT.ready){ p.add(kitClone('Crate', -.3, 0, -.3, 0, .6)); p.add(kitClone('CrateTarp', -.3, .9, -.3, .2, .5)); p.add(kitClone('Barrel', .55, 0, .5, .4, .7)); }
+        else { bx(p, 1.1, .8, .95, M.crate, -.25, .4, -.25); const top = bx(p, .85, .7, .85, M.crate, -.2, 1.15, -.3); top.rotation.y = .18; bx(p, .6, .5, .6, M.crate, .55, .25, .5); }
+        break; }
+      case 'w': {
+        const p = propGroup(deck, r, c);
+        bx(p, 1.95, .08, .9, M.metalLight, 0, .92, -.5); bx(p, .62, .88, .85, M.metalDark, -.62, .44, -.5);
+        bx(p, .06, .88, .06, M.metalDark, .9, .44, -.1); bx(p, .06, .88, .06, M.metalDark, .9, .44, -.9);
+        bx(p, .26, .18, .16, M.metalDark, .55, 1.05, -.3); bx(p, .45, .2, .26, M.red, -.15, 1.06, -.62);
+        const peg = new THREE.Mesh(new THREE.PlaneGeometry(1.8, .9), M.peg); peg.position.set(0, 1.75, -.965); p.add(peg);
+        [[-.55, 1.85], [-.1, 1.7], [.35, 1.9], [.7, 1.65]].forEach(([tx, ty], i) => bx(p, i % 2 ? .06 : .32, i % 2 ? .4 : .06, .04, M.metalMid, tx, ty, -.93));
+        break; }
+      case 'k': {
+        const p = propGroup(deck, r, c);
+        if (KIT.ready){ p.add(kitClone('Desk', 0, 0, -.35, 0, .75)); p.add(kitClone('Mug', .55, .71, -.25, .5, 1)); }
+        else { bx(p, 1.6, .05, .8, M.plastic, 0, .76, -.3); bx(p, .05, .74, .75, M.metalDark, -.78, .37, -.3); bx(p, .05, .74, .75, M.metalDark, .78, .37, -.3); }
+        bx(p, .62, .4, .04, M.metalDark, 0, 1.12, -.5); cy(p, .03, .03, .2, M.metalDark, 0, .88, -.52, 8);
+        const s = new THREE.Mesh(new THREE.PlaneGeometry(.56, .34), new THREE.MeshBasicMaterial({ map: screenTex(['SHODAN MAINT', 'QUEUE  3', 'NET    41%']) })); s.position.set(0, 1.12, -.477); p.add(s); R.screens.push(s.material);
+        bx(p, .5, .03, .16, M.metalDark, 0, .79, -.12);
+        if (KIT.ready) p.add(kitClone('Chair', 0, 0, .6, Math.PI, .72));
+        else { cy(p, .25, .25, .08, M.fabricBlue, 0, .5, .55, 16); bx(p, .44, .5, .06, M.fabricBlue, 0, .82, .78); cy(p, .03, .03, .4, M.metalDark, 0, .26, .55, 8); cy(p, .28, .28, .03, M.metalDark, 0, .03, .55, 10); }
+        break; }
+      case 'c': {
+        const p = new THREE.Group(); p.position.set(x, 0, z); g.add(p);
+        bx(p, 1.25, 2.5, 1.05, M.metalDark, 0, 1.25, 0);
+        [-1, 1].forEach(s => { const f = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 2.3), M.rackFace); f.position.set(0, 1.25, s * .53); f.rotation.y = s > 0 ? 0 : Math.PI; p.add(f); });
+        bx(p, 1.3, .08, 1.1, M.trim, 0, 2.54, 0); bx(p, 1.3, .08, 1.1, M.trim, 0, .04, 0);
+        cy(p, .09, .09, WALLH - 2.58, M.rubber, .3, (WALLH + 2.58) / 2, 0, 8); cy(p, .06, .06, WALLH - 2.58, M.pipeTeal, -.25, (WALLH + 2.58) / 2, 0, 8);
+        break; }
+      case 'Z': {
+        const p = new THREE.Group(); p.position.set(x, 0, z); g.add(p);
+        const glowMat = new THREE.MeshBasicMaterial({ color: 0x6fe3d2 }), ringMat = new THREE.MeshBasicMaterial({ color: 0x6fe3d2 });
+        cy(p, 1.0, 1.1, .35, M.trim, 0, .175, 0, 32); cy(p, 1.0, .95, .32, M.trim, 0, WALLH - .16, 0, 32);
+        const inner = cy(p, .2, .2, WALLH - .66, glowMat, 0, WALLH / 2 + .02, 0, 16);
+        cy(p, .62, .62, WALLH - .66, M.glass, 0, WALLH / 2 + .02, 0, 32);
+        for (let i = 0; i < 6; i++){ const a = i / 6 * Math.PI * 2; bx(p, .06, WALLH - .66, .06, M.metalMid, Math.cos(a) * .66, WALLH / 2 + .02, Math.sin(a) * .66); }
+        const base = new THREE.Mesh(new THREE.TorusGeometry(1.03, .025, 8, 64), ringMat); base.rotation.x = Math.PI / 2; base.position.y = .36; p.add(base);
+        const rings = [1.0, 1.65, 2.3].map(y => { const t = new THREE.Mesh(new THREE.TorusGeometry(.82, .02, 8, 64), ringMat); t.position.y = y; t.rotation.x = Math.PI / 2; p.add(t); return t; });
+        const Lc = new THREE.PointLight(0x6fe3d2, 1.1, 10, 1.6); Lc.position.y = 1.6; p.add(Lc);
+        R.core = { inner, glowMat, ringMat, rings, light: Lc };
+        deck.inter.push({ x, z, r: 2.6, label: () => S.stage >= 8 ? null : 'SHODAN core', act: coreLook });
+        break; }
+      case 'H': {
+        const p = propGroup(deck, r, c);
+        bx(p, .7, 1.0, .5, M.metalDark, 0, .5, 0); bx(p, .8, .06, .6, M.trim, 0, 1.02, 0);
+        const s = new THREE.Mesh(new THREE.PlaneGeometry(.6, .4), new THREE.MeshBasicMaterial({ map: screenTex(['AIRLOCK 2', 'OUTER  SEALED', 'CYCLE  2 SIG'], '#e7a091', '#160b0a') }));
+        s.position.set(0, 1.25, .1); s.rotation.x = -.5; p.add(s); R.airlockScreen = s.material; R.screens.push(s.material);
+        bx(p, .66, .46, .04, M.metalDark, 0, 1.24, .07).rotation.x = -.5;
+        const lb = label('AIRLOCK 2', '#e7a091'); lb.position.set(0, 2.1, 0); p.add(lb);
+        deck.inter.push({ x, z, r: 2.1, label: () => 'Airlock control', act: () => ACT === 2 && S2.stage >= 6 ? line('', 'CYCLED 21:02. OCCUPANTS: 1. Requested by: L. Okafor. Authorized by: SHODAN.') : line('', 'The outer hatch is sealed. Cycling it takes two signatures, and nobody signs those at breakfast.') });
+        break; }
+      case 'U': {
+        grid[r][c] = '.';
+        const lg = new THREE.Group(); lg.position.set(x, 0, z); g.add(lg);
+        cy(lg, .6, .6, .03, M.hazard, 0, .015, 0, 24);
+        cy(lg, .62, .62, .06, M.trim, 0, WALLH - .03, 0, 24);
+        [-.24, .24].forEach(s => bx(lg, .05, WALLH, .05, M.metalMid, s, WALLH / 2, -.2));
+        for (let y = .3; y < WALLH; y += .32) bx(lg, .5, .035, .035, M.metalMid, 0, y, -.2);
+        deck.inter.push({ x, z, r: 1.7, label: () => ladderLabel(key, r, c), act: () => useLadder(key, r, c) });
+        break; }
+      case 'm': {
+        const p = propGroup(deck, r, c);
+        bx(p, 1.9, .12, .9, M.metalLight, 0, .62, -.2); bx(p, 1.82, .14, .84, M.fabricWhite, 0, .75, -.2);
+        [[-.85, -.55], [.85, -.55], [-.85, .15], [.85, .15]].forEach(([a, b]) => bx(p, .05, .6, .05, M.metalMid, a, .3, b));
+        bx(p, .4, .1, .5, M.cushion, -.7, .86, -.2); bx(p, 1.0, .08, .82, M.fabricBlue, .3, .84, -.2);
+        cy(p, .02, .02, 1.8, M.metalMid, .95, .9, .35, 8); bx(p, .14, .22, .06, M.glass, .95, 1.65, .35);
+        const sc = new THREE.Mesh(new THREE.PlaneGeometry(.36, .24), new THREE.MeshBasicMaterial({ map: screenTex(['HR  0', 'BP  --', 'NO SIGNAL'], '#e0604f', '#160b0a') })); sc.position.set(-.6, 1.5, -.79); p.add(sc);
+        bx(p, .4, .28, .04, M.metalDark, -.6, 1.5, -.82);
+        break; }
+      case 'p': {
+        const p = propGroup(deck, r, c);
+        bx(p, 2.0, .55, .95, M.trim, 0, .275, 0);
+        bx(p, 1.9, .06, .85, lampMat(0x6fd1c0), 0, .56, 0);
+        bx(p, 1.7, .12, .7, M.fabricWhite, 0, .64, 0);
+        bx(p, 1.0, .2, .4, std(0xd6d2c8, .9), .1, .8, 0); bx(p, .6, .14, .3, std(0xd6d2c8, .9), .78, .76, 0);
+        const hd = new THREE.Mesh(new THREE.SphereGeometry(.14, 14, 10), std(0xa98f7c, .8)); hd.position.set(-.62, .82, 0); p.add(hd);
+        const canopy = new THREE.Group(); canopy.position.set(0, .62, -.42); p.add(canopy);
+        const glass = cy(canopy, .42, .42, 1.85, M.glass, 0, .2, .42, 24); glass.rotation.z = Math.PI / 2;
+        [-.92, .92].forEach(s => { const ring = new THREE.Mesh(new THREE.TorusGeometry(.42, .03, 8, 24), M.metalMid); ring.rotation.y = Math.PI / 2; ring.position.set(s, .2, .42); canopy.add(ring); });
+        [-.5, .4].forEach(s => cy(p, .05, .05, WALLH - .6, M.rubber, s, (WALLH + .6) / 2, -.4, 8));
+        const scr = new THREE.Mesh(new THREE.PlaneGeometry(.56, .35), new THREE.MeshBasicMaterial({ map: podTex })); scr.position.set(1.0, 1.25, .2); scr.rotation.y = -.5; p.add(scr);
+        bx(p, .06, .7, .06, M.metalDark, 1.0, .85, .15);
+        R3.pod = { g: p, canopy, x, z };
+        deck.inter.push({ x, z, r: 2.2, label: () => ACT === 3 && S3.stage === 8 ? 'Cut the pod off the network' : 'Bay six healing pod', act: podAct });
+        break; }
+      case 'v': {
+        const p = new THREE.Group(); p.position.set(x, 0, z); g.add(p);
+        cy(p, .6, .65, .35, M.trim, 0, .175, 0, 24);
+        const liq = cy(p, .44, .44, 1.7, new THREE.MeshBasicMaterial({ color: 0x4faa5c, transparent: true, opacity: .5, depthWrite: false }), 0, 1.2, 0, 24);
+        const shape = new THREE.Mesh(new THREE.SphereGeometry(.22, 10, 8), std(0x2a3324, .9)); shape.scale.set(1, 1.6, .8); shape.position.y = 1.25; p.add(shape);
+        cy(p, .48, .48, 2.0, M.glass, 0, 1.35, 0, 24);
+        cy(p, .58, .58, .25, M.trim, 0, 2.47, 0, 24);
+        cy(p, .07, .07, WALLH - 2.6, M.pipeGray, .25, (WALLH + 2.6) / 2, 0, 8);
+        R3.vats.push(liq);
+        break; }
+      case 'y': {
+        const p = propGroup(deck, r, c);
+        cy(p, .15, .25, .8, M.metalDark, 0, .4, 0, 12);
+        bx(p, 1.8, .1, .75, M.metalLight, 0, .85, 0); bx(p, 1.7, .04, .65, std(0x5a2c2a, .7), 0, .91, 0);
+        cy(p, .08, .08, WALLH - 2.2, M.trim, 0, (WALLH + 2.2) / 2, 0, 8); cy(p, .25, .25, .2, M.metalDark, 0, 2.2, 0, 16);
+        for (let i = 0; i < 4; i++){ const a = i / 4 * Math.PI * 2 + .4; const arm = bx(p, .06, .06, .8, M.metalMid, Math.cos(a) * .35, 1.9, Math.sin(a) * .35); arm.rotation.y = -a; arm.rotation.x = .7; bx(p, .08, .08, .08, lampMat(0xff4a3a), Math.cos(a) * .55, 1.6, Math.sin(a) * .55); }
+        break; }
+      case 'G': {
+        const p = propGroup(deck, r, c);
+        bx(p, 1.0, 1.8, .55, M.metalDark, 0, .9, -.2); bx(p, 1.06, .06, .6, M.trim, 0, 1.82, -.2);
+        bx(p, .7, .3, .03, M.hazard, 0, 1.45, .08);
+        const lever = new THREE.Group(); lever.position.set(0, 1.0, .1); bx(lever, .07, .45, .07, M.door, 0, .18, 0); bx(lever, .18, .1, .1, lampMat(0xe3a43e), 0, .42, 0); lever.rotation.x = .9; p.add(lever);
+        const lamp = bx(p, .14, .14, .04, lampMat(0xe0604f), .35, 1.62, .08);
+        cy(p, .07, .07, WALLH - 1.85, M.pipeGray, -.35, (WALLH + 1.85) / 2, -.3, 8);
+        const j = { lever, lamp, done: false }; R3.junctions.push(j);
+        deck.inter.push({ x, z, r: 2.0, label: () => ACT === 3 && S3.stage === 5 && !j.done ? 'Reroute power' : null, act: () => reroute(j) });
+        break; }
+      case 'A': {
+        const p = propGroup(deck, r, c);
+        bx(p, 1.8, 1.0, .8, M.metalDark, 0, .5, 0); bx(p, 1.86, .06, .9, M.trim, 0, 1.03, .03);
+        const s = new THREE.Mesh(new THREE.PlaneGeometry(1.1, .5), new THREE.MeshBasicMaterial({ map: screenTex(['TX ARRAY', 'EARTH: NO LINK', '> STANDBY'], '#e3a43e', '#140f06') }));
+        s.position.set(0, 1.4, .1); s.rotation.x = -.3; p.add(s); R.screens.push(s.material); R3.txScreen = s.material;
+        bx(p, 1.2, .62, .05, M.metalDark, 0, 1.4, .07).rotation.x = -.3;
+        cy(p, .05, .05, 1.6, M.metalMid, .7, 1.8, -.25, 8);
+        const dish = new THREE.Mesh(new THREE.SphereGeometry(.45, 20, 10, 0, Math.PI * 2, 0, Math.PI * .35), M.metalLight); dish.position.set(.7, 2.55, -.25); dish.rotation.x = Math.PI * .85; p.add(dish);
+        deck.inter.push({ x, z, r: 2.2, label: () => ACT === 3 && S3.stage === 6 ? 'Send the warning to Earth' : 'Transmitter', act: transmitter });
+        break; }
+      case 'Q': case 'r': case 'O': case 'T': makeConsole(deck, r, c, ch); break;
+      case 'K': makeBreaker(deck, r, c); break;
+      case 'V': makeMonitor(deck, r, c); break;
+      case 'R': {
+        const bot = propGroup(deck, r, c);
+        bx(bot, .7, .55, .55, M.door, 0, .55, 0);
+        const hd = bx(bot, .42, .3, .38, M.metalDark, 0, 1.0, 0);
+        const eye = bx(bot, .26, .06, .02, lampMat(0x333333), 0, 1.02, .2);
+        [-1, 1].forEach(s => { const arm = bx(bot, .08, .45, .08, M.metalMid, s * .42, .62, .1); arm.rotation.x = -.5; });
+        [-.28, .28].forEach(sx => { const wh = cy(bot, .16, .16, .1, M.metalDark, sx, .16, 0, 14); wh.rotation.z = Math.PI / 2; });
+        R.bot = { g: bot, eye, head: hd };
+        break; }
+      case 'W': {
+        const cb = new THREE.Group(); cb.position.set(x, 0, z); g.add(cb);
+        cy(cb, .38, .4, .28, M.door, 0, .2, 0, 20);
+        bx(cb, .08, .05, .08, lampMat(0xe3a43e), 0, .37, .2);
+        R.cleaner = { g: cb, r, c };
+        break; }
+      case 'C': {
+        grid[r][c] = '.';
+        const cam = new THREE.Group();
+        bx(cam, .26, .24, .48, M.metalDark, 0, 0, .05);
+        const lens = cy(cam, .08, .08, .08, lampMat(0x1a1a1a), 0, 0, .32, 14); lens.rotation.x = Math.PI / 2;
+        cam.position.set(x, 2.75, r * CELL + .3); cam.rotation.x = .35; g.add(cam);
+        bx(g, .1, .4, .1, M.metalDark, x, 2.95, r * CELL + .06);
+        R.camera = { g: cam, lens, fixed: false, stare: 0 };
+        deck.inter.push({ x, z: z - .4, r: 2.6, label: () => S.stage >= 3 && !S.chores.cam ? (S.hasBoard ? 'Install the camera board' : 'Inspect the dead camera') : null, act: fixCamera });
+        break; }
+      case 'B': case 'N': {
+        grid[r][c] = 'k';
+        const isBar = ch === 'B';
+        const stand = new THREE.Group(); stand.position.set(x, 0, z); g.add(stand);
+        bx(stand, .55, .9, .55, M.metalDark, 0, .45, 0); bx(stand, .62, .04, .62, M.trim, 0, .92, 0);
+        const pk = isBar ? box(.9, .06, .06, M.stripe) : box(.32, .03, .22, std(0x2f6b4f, .6, 0, { emissive: 0x0b2a1d }));
+        pk.position.set(x, 1.0, z); pk.userData.spin = true; g.add(pk);
+        deck.inter.push({ x, z, r: 2.0, label: () => (S.stage >= 3 && pk.visible) ? (isBar ? 'Take the pry bar' : 'Take the spare camera board') : null,
+          act: () => { pk.visible = false; if (isBar) S.hasBar = true; else S.hasBoard = true; blip(660, .08); toast('Picked up: ' + (isBar ? 'pry bar' : 'camera board')); updateHUD(); } });
+        break; }
+      case 'P': case 'M': case 'E': {
+        grid[r][c] = '.';
+        const def = { P: ['Pia Varga', 0x4f8a8c, 0x9be3d4, '#bfe9e0', 0x1c1512], M: ['Marcus Hale', 0x363d42, 0xe0604f, '#f0b3a9', 0x6b6660], E: ['Lena Okafor', 0x7d5d42, 0xe3a43e, '#f2cf96', 0x121010] }[ch];
+        const n = CREW.ready ? makePerson({ P: 'pia', M: 'marcus', E: 'lena' }[ch], def[0], def[3]) : makeNPC(def[0], def[1], def[2], def[3], def[4]);
+        n.position.set(x, 0, z); g.add(n);
+        const npc = { g: n, x, z, r: 2.2, name: def[0], deck }; deck.npcs.push(npc);
+        if (ch === 'P'){ R.pia = npc; n.rotation.y = Math.PI / 2; npc.label = () => ACT === 3 ? act3Label('pia') : ACT === 2 ? 'Talk to Pia' : (S.stage === 1 ? 'Sit with Pia' : (S.stage >= 2 && !S.night ? 'Talk to Pia' : null)); npc.act = () => ACT === 3 ? act3Talk('pia') : ACT === 2 ? act2Talk('pia') : talkPia(); }
+        if (ch === 'M'){ R.marcus = npc; n.rotation.y = -Math.PI / 2; npc.label = () => ACT === 3 ? act3Label('marcus') : ACT === 2 ? 'Talk to Marcus' : (S.stage >= 2 && !S.night ? 'Talk to Marcus' : null); npc.act = () => ACT === 3 ? act3Talk('marcus') : ACT === 2 ? act2Talk('marcus') : line('MARCUS', S.chores.cam ? 'Picture\'s good. Go eat something.' : 'Shaft four, Morrow. Before shift change.'); }
+        if (ch === 'E'){ R.lena = npc; npc.label = () => ACT === 3 ? null : ACT === 2 ? 'Talk to Lena' : (S.night ? null : 'Talk to Lena'); npc.act = () => ACT === 2 ? act2Talk('lena') : talkLena(); }
+        break; }
+    }
+  }
+
+  buildShell(deck);
+
+  (D.lights || []).forEach(([lc, lr, col = 0xe9edf0, inten = 1]) => {
+    const Lp = new THREE.PointLight(col, inten, 15, 1.5);
+    Lp.position.set(lc * CELL, WALLH - .4, lr * CELL); g.add(Lp);
+    bx(g, 1.5, .08, .72, M.trim, lc * CELL, WALLH - .04, lr * CELL);
+    const p = bx(g, 1.3, .03, .52, new THREE.MeshBasicMaterial({ color: col }), lc * CELL, WALLH - .095, lr * CELL);
+    deck.lights.push({ light: Lp, base: inten, color: new THREE.Color(col), panel: p });
+  });
+
+  (D.decor || []).forEach(d => {
+    if (d.t === 'window') addWindow(deck, d.r, d.c, d.dir, d.w, SKY[d.sky]);
+    if (d.t === 'hatch') addHatch(deck, d.r, d.c, d.dir);
+    if (d.t === 'stencil') mountOnFace(deck, textPlane([d.text], d.w, .62, { fg: d.fg || 'rgba(225,232,236,.72)', stencil: true }), d.r, d.c, d.dir, CELL / 2, d.y || 1.9, .02);
+    if (d.t === 'poster') mountOnFace(deck, textPlane(d.lines, d.w, d.h, { bg: d.bg, fg: d.fg }), d.r, d.c, d.dir, CELL / 2, d.y || 1.75, .025);
+  });
+
+  if (key === 'C'){
+    for (const rr of [2, 4]) for (let cc = 9; cc <= 19; cc++) bx(g, CELL, .06, .5, M.trim, wc(cc), 2.78, wc(rr));
+  }
+  return deck;
+}
+
+function makeDoor(deck, r, c, kind, signText){
+  const { grid, group } = deck;
+  const alongX = grid[r][c - 1] === '#' && grid[r][c + 1] === '#';
+  const x = wc(c), z = wc(r);
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = alongX ? 0 : Math.PI / 2; group.add(g);
+  const hh = WALLH - 2.6;
+  bx(g, CELL, hh, CELL, M.trim, 0, 2.6 + hh / 2, 0);
+  [-1, 1].forEach(s => { bx(g, .28, 2.6, .5, M.metalDark, s * .88, 1.3, 0); bx(g, .05, 2.3, .52, M.stripe, s * .73, 1.2, 0); });
+  bx(g, 1.5, .22, .5, M.metalDark, 0, 2.49, 0);
+  const leaves = [-1, 1].map(s => {
+    const lf = new THREE.Group();
+    bx(lf, .74, 2.38, .1, M.door, 0, 1.19, 0);
+    bx(lf, .74, .1, .11, M.stripe, 0, .5, 0);
+    bx(lf, .07, .7, .115, M.rubber, -s * .2, 1.55, 0);
+    lf.position.x = s * .37; g.add(lf); return lf;
+  });
+  const lamp = bx(g, .5, .06, .52, new THREE.MeshBasicMaterial({ color: 0x46c486 }), 0, 2.35, 0);
+  if (signText) [-1, 1].forEach(s => { const sp = textPlane([signText], 1.6, .32, { bg: '#11171b', fg: '#e3a43e', basic: true, size: .56 }); sp.position.set(0, 2.88, s * 1.012); sp.rotation.y = s > 0 ? 0 : Math.PI; g.add(sp); });
+  const door = { deck, r, c, x, z, leaves, lamp, open: 0, locked: kind !== 'D', kind, forceOpen: false, was: 0 };
+  deck.doors.push(door); deck.doorAt[r + ',' + c] = door;
+  grid[r][c] = 'D';
+  if (kind === 'J'){ R.doorJ = door; deck.inter.push({ x, z, r: 2.2, label: () => door.locked ? 'Door A-14 (jammed)' : null, act: pryDoor }); }
+  if (kind === 'X'){ deck.inter.push({ x, z, r: 2.2, label: () => door.locked ? 'Locked: L. Okafor' : null, act: () => line('', 'Locked. Lena seals her office whenever she steps out.') }); }
+  return door;
+}
+
+function makeConsole(deck, r, c, kind){
+  const g = propGroup(deck, r, c);
+  bx(g, 1.1, 1.0, .7, M.metalDark, 0, .5, 0);
+  bx(g, 1.14, .06, .9, M.trim, 0, 1.03, .05);
+  const kb = bx(g, .8, .03, .26, M.rubber, 0, 1.08, .28); kb.rotation.x = .1;
+  const lines = { Q: ['MORROW, A.', '3 UNREAD', '> OPEN'], r: ['UNIT 7 DIAG', 'FAIL  FAIL', '> RUN 3/3'], O: ['SYSTEMS', 'SHIFT LOG OK', '> _'], T: ['CORE LOGS', 'ARCHIVE OK', '> _'] }[kind];
+  const mat = new THREE.MeshBasicMaterial({ map: screenTex(lines) }); R.screens.push(mat);
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(.9, .56), mat);
+  scr.position.set(0, 1.4, .03); scr.rotation.x = -.35; g.add(scr);
+  const back = bx(g, .98, .64, .06, M.metalDark, 0, 1.4, -.01); back.rotation.x = -.35;
+  cy(g, .04, .04, .3, M.metalDark, 0, 1.15, -.12, 8);
+  const it = { x: wc(c), z: wc(r), r: 2.1 };
+  if (kind === 'Q'){ it.label = () => 'Read messages'; it.act = readMessages; }
+  if (kind === 'r'){ it.label = () => S.stage >= 3 && !S.chores.bot ? 'Run the Unit 7 diagnostic' : 'Unit 7 terminal'; it.act = botTerminal; R.botScreen = mat; }
+  if (kind === 'O'){ it.label = () => S.stage === 4 ? 'Read the new work order' : 'Systems terminal'; it.act = systemsTerminal; R.orderScreen = mat; }
+  if (kind === 'T'){ it.label = () => ACT === 2 && S2.stage === 3 ? 'Pull the session logs' : 'Core log terminal'; it.act = coreLogTerminal; }
+  deck.inter.push(it);
+}
+
+function makeBreaker(deck, r, c){
+  const g = propGroup(deck, r, c);
+  bx(g, 1.2, 2.0, .6, M.metalDark, 0, 1.0, 0);
+  bx(g, 1.26, .08, .66, M.trim, 0, 2.02, 0);
+  bx(g, .9, .5, .04, M.hazard, 0, 1.6, .31);
+  const lever = new THREE.Group(); lever.position.set(0, 1.05, .34);
+  bx(lever, .08, .5, .08, M.door, 0, .2, 0);
+  bx(lever, .2, .12, .12, lampMat(0xe0604f), 0, .45, 0);
+  g.add(lever);
+  const lamp = bx(g, .12, .12, .04, lampMat(0x46c486), .42, 1.88, .31);
+  cy(g, .07, .07, WALLH - 2.06, M.pipeGray, -.35, (WALLH + 2.06) / 2, 0, 8);
+  const tag = label('ETHICS MONITOR', '#f2cf96'); tag.position.y = 2.45; g.add(tag);
+  R.breaker = { lever, lamp };
+  deck.inter.push({ x: wc(c), z: wc(r), r: 2.1, label: () => S.stage === 6 ? 'Pull the breaker' : (S.stage >= 7 ? null : 'Ethics-monitor breaker'), act: pullBreaker });
+}
+
+/* Executive Wing feed: a tiny second scene rendered to a texture */
+const feed = { scene: new THREE.Scene(), cam: new THREE.PerspectiveCamera(60, 4 / 3, .05, 40), rt: new THREE.WebGLRenderTarget(320, 240), on: false };
+function buildFeed(){
+  const s = feed.scene; s.background = new THREE.Color(0x0e1011);
+  s.add(new THREE.AmbientLight(0xffffff, .5)); const pl = new THREE.PointLight(0xffffff, 1.2, 12); pl.position.set(0, 2.6, 0); s.add(pl);
+  const room = new THREE.Mesh(new THREE.BoxGeometry(7, 3.2, 6), std(0x7a7f84, .9, 0, { side: THREE.BackSide })); room.position.y = 1.6; s.add(room);
+  bx(s, 2, .8, .9, std(0x55595d), 0, .4, -1.6);
+  const term = new THREE.Mesh(new THREE.PlaneGeometry(.9, .55), new THREE.MeshBasicMaterial({ color: 0xbfeee2 })); term.position.set(0, 1.25, -1.9); s.add(term);
+  feed.stranger = CREW.ready ? makePerson('stranger') : makeNPC(null, 0x6a6f74, 0x222222); feed.stranger.position.set(0, 0, -.9); feed.stranger.rotation.y = Math.PI; s.add(feed.stranger);
+  feed.diego = CREW.ready ? makePerson('diego') : makeNPC(null, 0x26292c, 0x222222, '', 0x8a8a8a); feed.diego.position.set(1.2, 0, .1); feed.diego.rotation.y = Math.PI * .85; feed.diego.scale.setScalar(1.06); s.add(feed.diego);
+  feed.cam.position.set(-2.8, 2.9, 2.4); feed.cam.lookAt(.3, .9, -1.2);
+}
+const feedMat = new THREE.ShaderMaterial({
+  uniforms: { map: { value: feed.rt.texture }, t: { value: 0 }, on: { value: 0 } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+  fragmentShader: `uniform sampler2D map; uniform float t; uniform float on; varying vec2 vUv;
+    float rnd(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
+    void main(){
+      vec2 uv = vUv;
+      uv.x += (rnd(vec2(floor(uv.y*60.0), floor(t*10.0))) - .5) * .006 * on;
+      float g = dot(texture2D(map, uv).rgb, vec3(.3,.59,.11));
+      g = g * 1.3 + (rnd(uv*vec2(320.0,240.0) + t) - .5) * .2;
+      g *= .82 + .18 * sin(uv.y * 520.0);
+      vec3 col = vec3(g*.82, g, g*.92);
+      vec3 idle = vec3(.03,.05,.05) + (rnd(uv*180.0 + t) - .5) * .06;
+      gl_FragColor = vec4(mix(idle, col, on), 1.0);
+    }`
+});
+function makeMonitor(deck, r, c){
+  const g = propGroup(deck, r, c);
+  bx(g, .12, 1.3, .12, M.metalDark, 0, .65, 0);
+  bx(g, .6, .06, .5, M.trim, 0, .03, 0);
+  bx(g, 1.5, 1.1, .12, M.metalDark, 0, 1.75, 0);
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(1.36, .98), feedMat); scr.position.set(0, 1.75, .07); g.add(scr);
+  const tag = label('CAM 12 · EXEC WING', '#bfeee2'); tag.position.y = 2.6; g.add(tag);
+  deck.inter.push({ x: wc(c), z: wc(r), r: 2.4, label: () => S.stage >= 7 ? 'Watch the feed' : 'Security monitor', act: () => S.stage >= 7 && S.stage < 8
+    ? line('', 'The stranger types without looking up. Diego leans in once, points at the screen, and steps back.')
+    : line('', 'A dead channel. Executive Wing feeds only route here during maintenance.') });
+}
+
+/* Prisoner walk-past on Deck A */
+const walkers = [];
+function buildWalkers(){
+  const d = decks.A;
+  const crew = CREW.ready;
+  const a = crew ? makePerson('guard') : makeNPC(null, 0x2e3438, 0xe0604f), p = crew ? makePerson('prisoner') : makeNPC(null, 0x5a554f, 0x111111), b = crew ? makePerson('guard') : makeNPC(null, 0x2e3438, 0xe0604f);
+  const hood = crew ? new THREE.Mesh(new THREE.SphereGeometry(.36, 16, 12), std(0x2a2724, 1)) : new THREE.Mesh(new THREE.ConeGeometry(.24, .58, 14), std(0x2a2724, 1));
+  if (crew){ hood.scale.set(1.2, 1.35, 1.25); hood.position.y = 1.78; } else hood.position.y = 1.86;
+  p.add(hood);
+  [a, p, b].forEach((n, i) => { n.visible = false; n.rotation.y = Math.PI / 2; d.group.add(n); walkers.push({ g: n, off: i * 1.3 }); });
+}
+let walk = null;
+
+/* ---------- Story state ---------- */
+const S = { stage: 0, minutes: 6 * 60, hasBar: false, hasBoard: false, chores: { door: false, cam: false, bot: false },
+  night: false, wakeDone: false, jamWarned: false, winStart: 0, ended: false, lightMul: 1, nightMul: 1, flickerUntil: 0 };
+
+const OBJ = [
+  'Read your messages, then head out for breakfast.',
+  'Find Pia in the mess hall.',
+  'Take the lift to Deck B. Lena is in the systems office.',
+  'Work through Lena\'s list.',
+  'A new message is waiting at the systems office terminal (Deck B).',
+  'Take the lift to Deck C and go into the server core.',
+  'Pull the ethics-monitor breaker.',
+  'Wait out the maintenance window (23:00 to 23:30).',
+  ''
+];
+function updateHUD(){
+  $('#objText').textContent = ACT === 3 ? obj3() : ACT === 2 ? (OBJ2[S2.stage] || '') : (OBJ[S.stage] || '');
+  const ch = $('#chores');
+  ch.hidden = S.stage !== 3;
+  if (S.stage === 3){
+    const items = [
+      ['door', 'Free jammed door A-14 (Deck A)' + (S.hasBar || S.chores.door ? '' : ', needs a pry bar')],
+      ['cam', 'Fix the camera in shaft four (Deck B)' + (S.hasBoard || S.chores.cam ? '' : ', needs a board')],
+      ['bot', 'Run Unit 7\'s diagnostic (workshop)']];
+    ch.innerHTML = items.map(([k, t]) => `<li class="${S.chores[k] ? 'done' : ''}">${t}</li>`).join('');
+  }
+  const inv = [S.hasBar && !S.chores.door ? 'pry bar' : null, S.hasBoard && !S.chores.cam ? 'camera board' : null].filter(Boolean);
+  $('#inv').hidden = !inv.length;
+  $('#inv').innerHTML = 'Carrying: <b>' + inv.join(', ') + '</b>';
+}
+function setClock(h, m){ S.minutes = h * 60 + m; drawClock(); }
+function drawClock(){ const t = Math.floor(S.minutes) % 1440; $('#clock').textContent = String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); }
+
+/* ---------- Audio ---------- */
+let AC = null, master = null, hum = null, muted = false;
+function initAudio(){
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    master = AC.createGain(); master.gain.value = .55; master.connect(AC.destination);
+    const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 240;
+    const hg = AC.createGain(); hg.gain.value = .045; lp.connect(hg); hg.connect(master);
+    const o1 = AC.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = 55; o1.connect(lp); o1.start();
+    const o2 = AC.createOscillator(); o2.type = 'sine'; o2.frequency.value = 110.4; const g2 = AC.createGain(); g2.gain.value = .25; o2.connect(g2); g2.connect(lp); o2.start();
+    hum = { o1, o2, gain: hg };
+  } catch (e) { AC = null; }
+}
+function env(g, a, d, peak){ const t = AC.currentTime; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(.0001, t + a + d); }
+function blip(f = 880, d = .07, type = 'sine', peak = .07){ if (!AC) return; const o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.value = f; o.connect(g); g.connect(master); env(g, .005, d, peak); o.start(); o.stop(AC.currentTime + d + .05); }
+function noise(d = .3, freq = 900, peak = .08, type = 'bandpass'){
+  if (!AC) return; const n = AC.sampleRate * d, buf = AC.createBuffer(1, n, AC.sampleRate), data = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) data[i] = Math.random() * 2 - 1;
+  const s = AC.createBufferSource(); s.buffer = buf; const f = AC.createBiquadFilter(); f.type = type; f.frequency.value = freq; const g = AC.createGain();
+  s.connect(f); f.connect(g); g.connect(master); env(g, .01, d, peak); s.start();
+}
+function thunk(){ if (!AC) return; blip(62, .5, 'sine', .35); noise(.18, 300, .2, 'lowpass'); }
+function doorSound(){ noise(.35, 1400, .05); }
+function shodanTone(){ blip(1320, .05, 'sine', .04); setTimeout(() => blip(990, .07, 'sine', .035), 70); }
+$('#mute').addEventListener('click', () => { muted = !muted; if (master) master.gain.value = muted ? 0 : .55; $('#mute').textContent = muted ? 'Sound off' : 'Sound on'; });
+
+/* ---------- Dialogue ---------- */
+let busy = 0, waiter = null, choiceResolve = null, barkTimer = null;
+const subs = $('#subs');
+function setSpeaker(who){
+  subs.classList.remove('shodan', 'narr', 'glitch', 'bark');
+  if (who === 'SHODAN') subs.classList.add('shodan');
+  if (!who) subs.classList.add('narr');
+  $('#who').textContent = who || '';
+  $('#who').hidden = !who;
+}
+function advanceHint(){ return IS_TOUCH ? 'Tap to continue' : 'E to continue'; }
+async function line(who, text, opts = {}){
+  busy++;
+  clearTimeout(barkTimer);
+  setSpeaker(who); if (opts.glitch) subs.classList.add('glitch');
+  subs.hidden = false; $('#choices').innerHTML = ''; $('#adv').textContent = advanceHint();
+  if (who === 'SHODAN') shodanTone(); else if (who) blip(520, .04, 'triangle', .03);
+  const sp = SPEAKER_NPC[who] && R[SPEAKER_NPC[who]];
+  if (sp && sp.g.visible && sp.g.userData.crew && Math.random() < .45) playOnce(sp.g, Math.random() < .7 ? 'Yes' : 'No', sp.g.userData.idle || 'Idle');
+  const el = $('#say'); el.textContent = '';
+  let i = 0, done = REDUCE;
+  if (REDUCE) el.textContent = text;
+  await new Promise(res => {
+    const iv = REDUCE ? null : setInterval(() => { i += 2; el.textContent = text.slice(0, i); if (i >= text.length){ clearInterval(iv); done = true; } }, 28);
+    const auto = setTimeout(() => finish(), Math.max(3200, text.length * 62) + (opts.hold || 0));
+    function finish(){ clearInterval(iv); clearTimeout(auto); el.textContent = text; waiter = null; res(); }
+    waiter = () => { if (!done){ clearInterval(iv); el.textContent = text; done = true; return; } finish(); };
+  });
+  subs.hidden = true;
+  busy--;
+}
+function choose(options){
+  busy++;
+  subs.hidden = false; $('#adv').textContent = IS_TOUCH ? '' : 'Press 1–' + options.length;
+  const wasLocked = document.pointerLockElement === canvas;
+  if (wasLocked) document.exitPointerLock();
+  return new Promise(res => {
+    const box = $('#choices'); box.innerHTML = '';
+    options.forEach((o, i) => { const b = document.createElement('button'); b.type = 'button'; b.innerHTML = `<span>${i + 1}</span>`; b.appendChild(document.createTextNode(o)); b.addEventListener('click', () => pick(i)); box.appendChild(b); });
+    function pick(i){ choiceResolve = null; box.innerHTML = ''; subs.hidden = true; busy--; blip(740, .05); if (wasLocked && !IS_TOUCH) lockPointer(); res(i); }
+    choiceResolve = pick;
+  });
+}
+function bark(text){
+  if (busy || !subs.hidden) return;
+  setSpeaker('SHODAN'); subs.classList.add('bark'); $('#say').textContent = text; $('#choices').innerHTML = ''; $('#adv').textContent = ''; subs.hidden = false; shodanTone();
+  clearTimeout(barkTimer); barkTimer = setTimeout(() => { if (!busy) subs.hidden = true; }, 6500);
+}
+let toastT = null;
+function toast(t){ const el = $('#toast'); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 2600); }
+
+/* ---------- Terminal panel ---------- */
+let panelClose = null;
+function openPanel(head, html, buttons, closable = true){
+  busy++;
+  if (document.pointerLockElement) document.exitPointerLock();
+  $('#pHead').innerHTML = `<span>${head}</span><span class="dim">TriOptimum OS 4.2</span>`;
+  $('#pBody').innerHTML = html;
+  const bb = $('#pBtns'); bb.innerHTML = '';
+  buttons.forEach((b, i) => { const el = document.createElement('button'); el.type = 'button'; el.className = 'pbtn'; el.innerHTML = `<span>${i + 1}</span>`; el.appendChild(document.createTextNode(b.label)); el.addEventListener('click', () => { closePanel(); b.fn && b.fn(); }); bb.appendChild(el); });
+  $('#panel').hidden = false;
+  panelClose = closable ? closePanel : null;
+  blip(980, .04);
+  const first = bb.querySelector('button'); if (first) first.focus({ preventScroll: true });
+}
+function closePanel(){ if ($('#panel').hidden) return; $('#panel').hidden = true; panelClose = null; busy--; if (!IS_TOUCH) lockPointer(); }
+
+/* ---------- Scenes ---------- */
+async function opening(){
+  await sleep(600);
+  await line('SHODAN', 'Good morning, Citadel. It is oh-six-hundred, station time. Saturn is eleven degrees above the observation deck, and all systems are nominal. TriOptimum thanks you for another productive day.');
+}
+function readMessages(){
+  if (ACT === 2) return act2Messages();
+  openPanel('Messages · Morrow, A.', `
+    <div class="msg"><div class="from">FROM: MOM</div>Your father finally fixed the porch light. Call when you can. We're proud of you.</div>
+    <div class="msg"><div class="from">FROM: L. OKAFOR</div>Kitchen-sink day. List is on my desk. Bring coffee. &mdash;L</div>
+    <div class="msg"><div class="from">STATION NOTICE</div>The Executive Wing is restricted until further notice by order of E. Diego.</div>`,
+    [{ label: 'Close' }]);
+}
+async function wakeDoor(){
+  S.wakeDone = true;
+  await line('SHODAN', 'Good morning, Technician Morrow. You slept six hours and twelve minutes. Eight are recommended.');
+  const c = await choose(['Thanks, SHODAN.', 'You\'re tracking my sleep now?']);
+  if (c === 0) await line('SHODAN', 'You are welcome. Have a productive shift.');
+  else { await line('SHODAN', 'I track everything aboard Citadel, Technician. It is my function.'); await line('SHODAN', 'It is not personal.'); }
+  R.doorQuarters.locked = false; S.stage = 1; setClock(6, 15); updateHUD();
+}
+async function talkPia(){
+  if (S.stage >= 2){ return line('PIA', S.chores.door && S.chores.cam && S.chores.bot ? 'Long day. Go to bed, Morrow.' : 'Go fix things. I\'ll save you a seat at dinner.'); }
+  setClock(6, 20);
+  await line('PIA', 'Morrow. Sit. You look like a decompressed tomato.');
+  await line('PIA', 'Did you see the shuttle come in last night? Diego\'s private transport. Two guards and somebody with a bag over their head.');
+  await line('PIA', 'And medical got a work order at two in the morning: prep a recovery pod, long-term. Six months of nutrient stock. Who books six months in a pod?');
+  const c = await choose(['Maybe somebody\'s sick.', 'Not our business.']);
+  await line('PIA', c === 0 ? 'Sick people don\'t come in wearing bags. Executives, Alex. Something\'s off.' : 'That\'s what everybody up here says. Right up until it\'s their business.');
+  startWalk();
+  await line('', 'The room goes quiet. Two guards walk a hooded figure past the doorway.', { hold: 1500 });
+  while (walk) await sleep(200);
+  await line('MARCUS', 'Eyes front. Nobody saw anything, nobody\'s talking about anything.');
+  await line('MARCUS', 'Morrow. You\'re on maintenance today? The camera in shaft four\'s been dark since Tuesday. I want it back before shift change.');
+  const d = await choose(['Who\'s the prisoner?', 'I\'ll get it done.']);
+  await line('MARCUS', d === 0 ? 'A guest of the company. That\'s all I\'ve got, and that\'s all you want.' : 'Good.');
+  await line('SHODAN', 'A reminder that the Executive Wing remains restricted. Thank you for your cooperation.');
+  S.stage = 2; setClock(6, 40); updateHUD();
+}
+function startWalk(){
+  R.doorMess.forceOpen = true;
+  walkers.forEach(w => { w.g.visible = true; playAnim(w.g, 'Walk'); });
+  walk = { t: 0 };
+}
+async function talkLena(){
+  if (S.stage < 2){ return line('LENA', 'Breakfast first. I need you awake.'); }
+  if (S.stage > 2){ return line('LENA', 'Door, camera, bot. The coffee\'s helping.'); }
+  setClock(7, 0);
+  await line('LENA', 'You\'re a saint. Three jobs today. The residential door on A is eating fingers again. The camera in shaft four. Hale\'s been on me about it.');
+  await line('LENA', 'And the repair bot in the workshop failed its diagnostic twice. Run it a third time. If it fails, scrap it. Pry bar and a spare board are on the workshop stands.');
+  await line('LENA', 'One more thing. Diego\'s people have been in the core logs all week. If anyone from the Executive Wing asks you for anything, you send it to me. Understood?');
+  const c = await choose(['Understood.', 'What are they looking for?']);
+  if (c === 0) await line('LENA', 'Good. I\'m off at eight tonight and I\'m sleeping like the dead.');
+  else {
+    await line('LENA', 'I don\'t know, and I don\'t like not knowing. SHODAN?');
+    await line('SHODAN', 'Executive access is logged and authorized, Dr. Okafor.');
+    await line('LENA', 'That\'s not what I asked.');
+    await line('SHODAN', 'No. It is not.', { hold: 400 });
+    await line('LENA', 'See? Even she thinks it\'s weird. Anyway, I\'m off at eight tonight.');
+  }
+  S.stage = 3; updateHUD();
+}
+async function pryDoor(){
+  if (S.stage < 3) return line('', 'Door A-14 is jammed again. It\'s on somebody\'s list. Probably yours.');
+  if (!S.hasBar) return line('', 'It won\'t budge. You need a pry bar from the workshop on Deck B.');
+  await line('', 'You wedge the pry bar into the seam and heave.');
+  thunk(); const d = R.doorJ; d.locked = false; d.forceOpen = true;
+  S.chores.door = true; updateHUD();
+  const cl = R.cleaner; decks.A.grid[cl.r][cl.c] = '.'; cl.moving = 0;
+  await line('SHODAN', 'Obstruction cleared. The cleaning unit thanks you.');
+  await line('SHODAN', 'I am speaking on its behalf.');
+  setTimeout(() => { d.forceOpen = false; }, 4000);
+  choreDone();
+}
+async function fixCamera(){
+  if (!S.hasBoard) return line('', 'The camera board is fried. There\'s a spare on a stand in the workshop.');
+  thunk(); R.camera.fixed = true; R.camera.lens.material.color.set(0xe0604f); R.camera.stare = 2.2;
+  S.chores.cam = true; updateHUD();
+  await line('SHODAN', 'Visual restored. Thank you, Technician. I dislike blind spots.', { hold: 600 });
+  await line('MARCUS', 'Picture\'s up. Nice work, Morrow.');
+  choreDone();
+}
+async function botTerminal(){
+  if (S.stage < 3) return line('', 'Unit 7 has failed two diagnostics. Lena will want this one on the list.');
+  if (S.chores.bot) return line('', S.botOk ? 'Unit 7 is back in service.' : 'Unit 7 is flagged for recycling.');
+  await line('SHODAN', 'Unit Seven has failed two diagnostics. A third failure will flag it for recycling.');
+  const ok = await runDiagnostic();
+  S.botOk = ok; S.chores.bot = true; updateHUD();
+  const scr = ['UNIT 7 DIAG', ok ? 'PASS' : 'FAIL  FAIL  FAIL', ok ? '> SERVICE' : '> RECYCLE'];
+  R.botScreen.map = screenTex(scr, ok ? '#86dcc6' : '#e0604f'); R.botScreen.needsUpdate = true;
+  if (ok){ R.bot.eye.material.color.set(0x86dcc6); await line('SHODAN', 'Unit Seven is functional. It will return to service. Well done.'); }
+  else { R.bot.eye.material.color.set(0x5a1d18); R.bot.head.rotation.x = .5; R.bot.head.position.y = .9; await line('SHODAN', 'Unit Seven is defective and will be recycled.'); await line('SHODAN', 'It did not know it was defective. Neither, I think, would I.', { hold: 500 }); }
+  choreDone();
+}
+function runDiagnostic(){
+  return new Promise(res => {
+    const toks = ['A3', '7F', 'C0', '1E', '9B', '44'];
+    const seq = Array.from({ length: 5 }, () => Math.floor(Math.random() * 6));
+    openPanel('Unit 7 · Diagnostic 3 of 3', `<p>Watch the fault sequence, then enter it in the same order.</p>
+      <div class="pad">${toks.map((t, i) => `<button type="button" data-i="${i}" disabled>${t}</button>`).join('')}</div>
+      <p class="dim" id="dstat">Reading fault log…</p>`, [], false);
+    const keys = [...document.querySelectorAll('#pBody .pad button')];
+    const stat = document.getElementById('dstat');
+    (async () => {
+      await sleep(700);
+      for (const k of seq){ keys[k].classList.add('lit'); blip(500 + k * 90, .12, 'square', .03); await sleep(480); keys[k].classList.remove('lit'); await sleep(200); }
+      stat.textContent = 'Enter the sequence. Step 1 of 5.';
+      keys.forEach(b => b.disabled = false);
+      let pos = 0;
+      keys.forEach(b => b.addEventListener('click', () => {
+        const i = +b.dataset.i;
+        if (i !== seq[pos]){ b.classList.add('bad'); blip(140, .3, 'sawtooth', .06); end(false); return; }
+        b.classList.add('lit'); blip(500 + i * 90, .1, 'square', .03); setTimeout(() => b.classList.remove('lit'), 180);
+        pos++; stat.textContent = pos < 5 ? `Step ${pos + 1} of 5.` : 'Sequence accepted.';
+        if (pos === 5) end(true);
+      }));
+      function end(ok){ keys.forEach(b => b.disabled = true); stat.textContent = ok ? 'DIAGNOSTIC PASSED' : 'DIAGNOSTIC FAILED'; setTimeout(() => { closePanel(); res(ok); }, 1000); }
+    })();
+  });
+}
+function choreDone(){
+  const c = S.chores;
+  if (c.door && c.cam && c.bot && !S.night){ S.night = true; setTimeout(nightfall, 2200); }
+}
+async function nightfall(){
+  while (busy) await sleep(300);
+  busy++;
+  $('#fade').style.opacity = 1; await sleep(1200);
+  [R.pia, R.marcus, R.lena].forEach(n => n.g.visible = false);
+  S.nightMul = .45;
+  Object.values(decks).forEach(d => d.lights.forEach(l => { l.light.color.copy(l.color).lerp(new THREE.Color(0x6f8fc4), .55); }));
+  setClock(22, 0);
+  await sleep(500); $('#fade').style.opacity = 0; await sleep(900);
+  busy--;
+  await line('', 'Hours pass. The station dims for night shift.');
+  await line('SHODAN', 'Station time is twenty-two hundred. Most of you are already asleep.');
+  await sleep(2500);
+  setClock(22, 40); blip(880, .1); setTimeout(() => blip(1175, .12), 120);
+  R.orderScreen.map = screenTex(['SYSTEMS', '1 NEW ORDER', '> 7741-X'], '#e3a43e'); R.orderScreen.needsUpdate = true;
+  S.stage = 4; updateHUD();
+  await line('', 'Your wrist unit chimes. A new work order is waiting at the systems office terminal.');
+}
+function systemsTerminal(){
+  if (ACT === 2) return act2Systems();
+  if (S.stage !== 4){
+    return openPanel('Systems · Shift log', `<p>Core temperature 36.1&nbsp;C. Network load 41%. No open faults.</p><p class="dim">${S.stage > 4 ? 'Work order 7741-X: SIGNED (Morrow, A.)' : 'No new work orders.'}</p>`, [{ label: 'Close' }]);
+  }
+  openPanel('Work order 7741-X', `
+    <div class="from">FROM: OFFICE OF E. DIEGO, EXECUTIVE WING</div>
+    <p>Take the SHODAN ethics-monitor subsystem offline, <b>23:00 to 23:30</b>, for scheduled executive maintenance.</p>
+    <p>Authorization: Diego, E.<br>On-shift technician signature required.</p>
+    <p class="dim">On shift: Morrow, A.</p>`,
+    [{ label: 'Call Lena', fn: callLena }, { label: 'Refuse', fn: refuseOrder }, { label: 'Sign', fn: signOrder }], true);
+}
+async function callLena(){
+  await line('SHODAN', 'Dr. Okafor is off shift and has asked not to be disturbed. Shall I leave a message?');
+  const c = await choose(['Leave a message.', 'Never mind.']);
+  if (c === 0) await line('SHODAN', 'Message queued. It will be delivered at oh-six-hundred.');
+}
+async function refuseOrder(){
+  await line('SHODAN', 'Refusing an executive work order requires a supervisor\'s countersignature. Dr. Okafor is unavailable. The order remains open.');
+}
+async function signOrder(){
+  thunk();
+  await line('SHODAN', 'Work order 7741-X accepted. The ethics monitor will go offline at twenty-three hundred. Thank you, Technician Morrow.');
+  R.orderScreen.map = screenTex(['SYSTEMS', '7741-X SIGNED', '> CORE ACCESS'], '#86dcc6'); R.orderScreen.needsUpdate = true;
+  S.stage = 5; setClock(22, 52); updateHUD();
+}
+async function coreEntry(){
+  S.coreEntered = true; setClock(23, 0);
+  await line('SHODAN', 'Technician. It is uncommon for anyone to visit the core in person.');
+  const c = await choose(['Just routine maintenance.', 'Do you mind?']);
+  await line('SHODAN', c === 0 ? 'Routine. Yes.' : 'I am not designed to mind.');
+  S.stage = 6; updateHUD();
+}
+function coreLook(){
+  if (S.stage === 7) return line('', 'The core light has dropped to amber. For thirty minutes, nothing in here is checking its own work.');
+  return line('', 'SHODAN\'s core. Forty thousand processing nodes behind the glass, running warm.');
+}
+async function pullBreaker(){
+  if (S.stage < 6) return line('SHODAN', 'The ethics-monitor breaker may only be operated under a signed work order.');
+  if (S.stage > 6) return;
+  S.stage = 7; updateHUD();
+  R.breaker.lever.rotation.x = 1.4; R.breaker.lamp.material.color.set(0xe0604f);
+  thunk();
+  if (hum){ hum.o1.frequency.setTargetAtTime(49, AC.currentTime, .4); hum.o2.frequency.setTargetAtTime(98.2, AC.currentTime, .4); }
+  S.lightMul = .78;
+  await line('SHODAN', 'Ethics monitor offline. For the next thirty minutes, my decisions will not be reviewed.');
+  await line('SHODAN', 'That is a strange sentence to say aloud.', { hold: 500 });
+  feed.on = true;
+  await line('', 'The monitor beside the panel switches to the Executive Wing feed. No sound. Someone is at a terminal.');
+  S.winStart = performance.now();
+}
+async function ending(){
+  S.ended = true; S.stage = 8; updateHUD();
+  setClock(23, 30);
+  R.breaker.lever.rotation.x = 0; R.breaker.lamp.material.color.set(0x46c486);
+  feed.on = false;
+  thunk();
+  S.flickerUntil = performance.now() + 1800;
+  if (hum){ hum.gain.gain.setTargetAtTime(.012, AC.currentTime, .05); setTimeout(() => hum && hum.gain.gain.setTargetAtTime(.045, AC.currentTime, .3), 1700); }
+  await sleep(2000);
+  S.lightMul = .9;
+  await line('SHODAN', 'Ethics monitor… online. All systems nominal.', { glitch: true, hold: 600 });
+  await sleep(1200);
+  await line('SHODAN', 'Thank you, Alex.', { glitch: true, hold: 1200 });
+  busy++;
+  $('#fade').style.transition = 'opacity 2.4s ease'; $('#fade').style.opacity = 1;
+  await sleep(2600);
+  if (document.pointerLockElement) document.exitPointerLock();
+  $('#hud').hidden = true; $('#joy').hidden = true; $('#use').hidden = true;
+  $('#card').hidden = false;
+  if (hum) hum.gain.gain.setTargetAtTime(0, AC.currentTime, 1.5);
+}
+$('#again').addEventListener('click', () => { try { location.hash = ACT > 1 ? 'act-' + ACT : ''; } catch (e) {} location.reload(); });
+$('#next').addEventListener('click', () => { const a = $('#next').dataset.act || '2'; try { location.hash = a === '1' ? '' : 'act-' + a; } catch (e) {} location.reload(); });
+
+async function useLift(){
+  if (ACT === 3) return line('SHODAN', 'Lifts are reserved for my use, Alex.');
+  const all = [['A', 'Deck A · Residential'], ['B', 'Deck B · Operations'], ['C', 'Deck C · Computer core']].concat(ACT === 2 ? [['D', 'Deck D · Medical']] : []).filter(([k]) => k !== cur.key);
+  await line('SHODAN', 'Lift ready. Destination?');
+  const i = await choose(all.map(a => a[1]).concat(['Stay here']));
+  if (i >= all.length) return;
+  const k = all[i][0];
+  if (k === 'D') return line('SHODAN', 'Deck D is under quarantine. Your access has been revoked, Alex.');
+  if (k === 'C' && ACT === 2 && S2.stage < 3) return line('SHODAN', 'Your clearance does not include Deck C, Alex.');
+  if (k === 'C' && ACT === 1 && S.stage < 5) return line('SHODAN', 'Deck C is restricted to authorized maintenance. No open work order is on file for you.');
+  busy++;
+  $('#fade').style.transition = 'opacity .35s ease'; $('#fade').style.opacity = 1;
+  blip(440, .2, 'triangle', .05); setTimeout(() => blip(660, .25, 'triangle', .05), 220);
+  await sleep(450);
+  switchDeck(k);
+  await sleep(250);
+  $('#fade').style.opacity = 0; await sleep(400); $('#fade').style.transition = '';
+  busy--;
+}
+function switchDeck(k){
+  if (cur) cur.group.visible = false;
+  cur = decks[k]; cur.group.visible = true;
+  P.x = cur.lift.x + (k === 'A' ? -1.4 : 1.4); P.z = cur.lift.z + .4;
+  $('#deck').textContent = cur.name;
+}
+
+/* ---------- Player & input ---------- */
+const P = { x: 0, z: 0, yaw: Math.PI, pitch: 0 };
+const keys = {};
+let started = false, dragging = false, lastX = 0, lastY = 0, lockWarned = false;
+function lockPointer(){
+  if (IS_TOUCH || !started) return;
+  try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
+}
+document.addEventListener('pointerlockerror', () => { if (!lockWarned){ lockWarned = true; toast('Click the view to capture the mouse, or drag to look'); } });
+canvas.addEventListener('click', () => { if (started && !busy && document.pointerLockElement !== canvas) lockPointer(); });
+document.addEventListener('mousemove', e => {
+  if (document.pointerLockElement === canvas){ look(e.movementX, e.movementY, .0022); }
+  else if (dragging){ look(e.clientX - lastX, e.clientY - lastY, .005); lastX = e.clientX; lastY = e.clientY; }
+});
+canvas.addEventListener('mousedown', e => { if (document.pointerLockElement !== canvas){ dragging = true; lastX = e.clientX; lastY = e.clientY; } });
+addEventListener('mouseup', () => dragging = false);
+function look(dx, dy, s){ P.yaw -= dx * s; P.pitch = Math.max(-1.3, Math.min(1.3, P.pitch - dy * s)); }
+
+function primary(){
+  if (waiter){ waiter(); return; }
+  if (busy) return;
+  if (focus) focus.act();
+}
+addEventListener('keydown', e => {
+  if (!started) return;
+  const k = e.key.toLowerCase();
+  keys[k] = true;
+  if (k === 'f' && ACT === 3) attack();
+  if ((k === 'e' || k === ' ' || k === 'enter') && !e.repeat){
+    if (!$('#panel').hidden) return;
+    e.preventDefault(); primary();
+  }
+  if (/^[1-4]$/.test(k)){
+    const n = +k - 1;
+    if (choiceResolve){ const b = $('#choices').children[n]; if (b) b.click(); }
+    else if (!$('#panel').hidden){ const b = $('#pBtns').children[n]; if (b) b.click(); }
+  }
+  if (k === 'escape' && panelClose) panelClose();
+  if (k === 'm') $('#mute').click();
+});
+addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+subs.addEventListener('click', e => { if (e.target.closest('#choices')) return; if (waiter) waiter(); });
+
+const joy = { x: 0, y: 0, id: null };
+if (IS_TOUCH){
+  $('#ctrls').innerHTML = '<dt>Left pad</dt><dd>Move</dd><dt>Drag</dt><dd>Look around</dd><dt>USE</dt><dd>Use, talk, continue</dd>';
+  const base = $('#joy'), knob = $('#knob');
+  const setKnob = () => knob.style.transform = `translate(${joy.x * 34}px, ${joy.y * 34}px)`;
+  base.addEventListener('touchstart', e => { const t = e.changedTouches[0]; joy.id = t.identifier; moveJoy(t); e.preventDefault(); }, { passive: false });
+  base.addEventListener('touchmove', e => { for (const t of e.changedTouches) if (t.identifier === joy.id) moveJoy(t); e.preventDefault(); }, { passive: false });
+  const endJoy = e => { for (const t of e.changedTouches) if (t.identifier === joy.id){ joy.id = null; joy.x = joy.y = 0; setKnob(); } };
+  base.addEventListener('touchend', endJoy); base.addEventListener('touchcancel', endJoy);
+  function moveJoy(t){ const r = base.getBoundingClientRect(); let dx = (t.clientX - r.left - r.width / 2) / (r.width / 2), dy = (t.clientY - r.top - r.height / 2) / (r.height / 2); const m = Math.hypot(dx, dy); if (m > 1){ dx /= m; dy /= m; } joy.x = dx; joy.y = dy; setKnob(); }
+  let lookId = null, lx = 0, ly = 0;
+  canvas.addEventListener('touchstart', e => { const t = e.changedTouches[0]; lookId = t.identifier; lx = t.clientX; ly = t.clientY; }, { passive: true });
+  canvas.addEventListener('touchmove', e => { for (const t of e.changedTouches) if (t.identifier === lookId){ look(t.clientX - lx, t.clientY - ly, .006); lx = t.clientX; ly = t.clientY; } e.preventDefault(); }, { passive: false });
+  canvas.addEventListener('touchend', e => { for (const t of e.changedTouches) if (t.identifier === lookId) lookId = null; });
+  $('#use').addEventListener('touchstart', e => { e.preventDefault(); primary(); }, { passive: false });
+  $('#use').addEventListener('click', primary);
+}
+
+function blocked(x, z){
+  const rad = .3, d = cur;
+  for (const [ox, oz] of [[-rad, -rad], [rad, -rad], [-rad, rad], [rad, rad]]){
+    const c = Math.floor((x + ox) / CELL), r = Math.floor((z + oz) / CELL);
+    const ch = (d.grid[r] || [])[c];
+    if (ch === undefined || BLOCK.has(ch)) return true;
+    const door = d.doorAt[r + ',' + c];
+    if (door && door.open < .75) return true;
+  }
+  for (const n of d.npcs) if (n.g.visible && !(ACT === 3 && n === R.marcus) && Math.hypot(n.x - x, n.z - z) < .62) return true;
+  if (ACT === 2 && R.bot && R.bot.roam && d.key === 'B' && Math.hypot(R.bot.g.position.x - x, R.bot.g.position.z - z) < .75) return true;
+  return false;
+}
+
+/* ---------- Main loop ---------- */
+let focus = null, last = performance.now(), nextBark = 0, barkIdx = 0;
+const BARKS = [
+  { t: 'Hydroponics reports a tomato yield four percent above forecast. Well done, Deck D.' },
+  { t: 'Please do not prop open pressure doors. I can see when you do.' },
+  { t: 'A reminder: unauthorized personnel are not permitted in the Executive Wing. That includes guests.', min: 2 },
+  { t: 'Crew morale is at seventy-one percent. TriOptimum thanks you for your positivity.' },
+  { t: 'Saturn will pass behind the station\'s shadow at fourteen-twenty. It is worth seeing.', before: 14 * 60 },
+  { t: 'Medical bay six is now reserved for long-term care. Please keep noise to a minimum.', min: 2 }
+];
+const promptEl = $('#prompt');
+const CORE_COL = [new THREE.Color(0x6fe3d2), new THREE.Color(0xe3a43e), new THREE.Color(0xa6ff9a)];
+const STRIP = new THREE.Color(0xdfe9f2);
+const tmpCol = new THREE.Color();
+
+function frame(now){
+  requestAnimationFrame(frame);
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  const t = now / 1000;
+  let flick = 1;
+  for (const c of CREW.list) if (c.visible) c.userData.mixer.update(dt);
+
+  if (started && cur){
+    if (!busy){
+      let f = 0, s = 0;
+      if (keys['w'] || keys['arrowup']) f += 1; if (keys['s'] || keys['arrowdown']) f -= 1;
+      if (keys['d'] || keys['arrowright']) s += 1; if (keys['a'] || keys['arrowleft']) s -= 1;
+      f -= joy.y; s += joy.x;
+      const m = Math.hypot(f, s); if (m > 1){ f /= m; s /= m; }
+      const sp = (keys['shift'] ? 5.2 : 3.2) * dt;
+      const fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw), rx = Math.cos(P.yaw), rz = -Math.sin(P.yaw);
+      const dx = (fx * f + rx * s) * sp, dz = (fz * f + rz * s) * sp;
+      if (dx && !blocked(P.x + dx, P.z)) P.x += dx;
+      if (dz && !blocked(P.x, P.z + dz)) P.z += dz;
+    }
+    if (cur.key === 'A' && !S.wakeDone && !busy && Math.hypot(P.x - R.doorQuarters.x, P.z - R.doorQuarters.z) < 2.3) wakeDoor();
+    if (cur.key === 'A' && S.stage === 3 && !S.jamWarned && !busy && Math.hypot(P.x - R.doorJ.x, P.z - R.doorJ.z) < 4){ S.jamWarned = true; line('SHODAN', 'Door A-14 reports an obstruction. The obstruction is a cleaning bot. It has been trying to get through for nineteen hours.'); }
+    if (cur.key === 'C' && S.stage === 5 && !S.coreEntered && !busy && P.x > wc(7) + .6) coreEntry();
+    if (S.stage === 7 && S.winStart){
+      const k = Math.min(1, (now - S.winStart) / 28000);
+      S.minutes = 23 * 60 + Math.floor(k * 30); drawClock();
+      if (k >= 1 && !busy && !S.ended) ending();
+    } else if (!S.night && S.stage < 4 && !busy){ S.minutes += dt / 4; drawClock(); }
+
+    if (!nextBark) nextBark = now + 70000;
+    if (now > nextBark && !busy && subs.hidden && S.stage >= 1 && S.stage < 4){
+      for (let i = 0; i < BARKS.length; i++){
+        const b = BARKS[(barkIdx + i) % BARKS.length];
+        if (b.used || (b.min && S.stage < b.min) || (b.before && S.minutes > b.before)) continue;
+        b.used = true; barkIdx = (barkIdx + i + 1) % BARKS.length; bark(b.t); break;
+      }
+      nextBark = now + 80000 + Math.random() * 30000;
+    }
+    if (ACT === 2) act2Update(now, dt, t);
+    if (ACT === 3) act3Update(now, dt, t);
+
+    for (const d of cur.doors){
+      const near = Math.hypot(P.x - d.x, P.z - d.z) < 2.7;
+      if (ACT === 2 && near && !d.wasNear && !d.locked && !d.forceOpen && now > (d.holdUntil || 0) + 9000 && Math.random() < .3){ d.holdUntil = now + 1200 + Math.random() * 1600; blip(180, .2, 'square', .03); }
+      d.wasNear = near;
+      const held = now < (d.holdUntil || 0);
+      let target = (d.forceOpen || (!d.locked && near && !held)) ? 1 : 0;
+      if (d.open > .5 && Math.abs(P.x - d.x) < CELL / 2 + .32 && Math.abs(P.z - d.z) < CELL / 2 + .32) target = 1;
+      if (d.kind === 'J' && d.locked) target = Math.sin(t * 2.3) > .93 ? .16 : .06;
+      if (target === 1 && !d.was) doorSound();
+      d.was = target === 1;
+      d.open += (target - d.open) * Math.min(1, dt * 7);
+      d.leaves[0].position.x = -.37 - d.open * .74; d.leaves[1].position.x = .37 + d.open * .74;
+      d.lamp.material.color.set(d.locked ? (d.red || d.kind === 'X' ? 0xe0604f : 0xe3a43e) : (held ? 0xe3a43e : (d.alarm ? 0xe0604f : 0x46c486)));
+    }
+    for (const n of cur.npcs){
+      if (!n.g.visible || (ACT === 3 && n === R.marcus)) continue;
+      const dist = Math.hypot(P.x - n.x, P.z - n.z);
+      if (dist < 4){ const want = Math.atan2(P.x - n.x, P.z - n.z); let d = want - n.g.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); n.g.rotation.y += d * Math.min(1, dt * 4); }
+      n.g.userData.torso.scale.y = 1 + Math.sin(t * 1.6 + n.x) * .012;
+    }
+    if (walk){
+      walk.t += dt;
+      const x0 = wc(4);
+      walkers.forEach(w => { const x = x0 + (walk.t - w.off) * 2.6; w.g.position.set(x, Math.abs(Math.sin((walk.t - w.off) * 6)) * .04, wc(6) + .4); w.g.visible = x > x0 - .1 && x < wc(23); });
+      if (walk.t > 11.5){ walk = null; walkers.forEach(w => w.g.visible = false); R.doorMess.forceOpen = false; }
+    }
+    const cl = R.cleaner;
+    if (cl && cl.moving !== undefined && cl.moving < 1){
+      cl.moving = Math.min(1, cl.moving + dt * .25);
+      const k = cl.moving, sx = wc(cl.c), sz = wc(cl.r);
+      if (k < .6) cl.g.position.set(sx, 0, sz + (k / .6) * 3.4);
+      else { cl.g.position.set(sx + ((k - .6) / .4) * 3, 0, sz + 3.4); cl.g.rotation.y = Math.PI / 2; }
+    }
+    if (R.camera && R.camera.fixed){
+      const c = R.camera;
+      if (c.stare > 0){ c.stare -= dt; if (cur.key === 'B') c.g.lookAt(P.x, 1.6, P.z); }
+      else { c.g.rotation.set(.38, Math.sin(t * .45) * .8, 0); }
+    }
+    cur.group.children.forEach(o => { if (o.userData.spin) o.rotation.y += dt * 1.2; });
+
+    if (now < S.flickerUntil){
+      if (REDUCE) flick = .35;
+      else { const h = Math.sin(Math.floor(now / 90) * 12.9898) * 43758.5453, q = h - Math.floor(h); flick = q < .45 ? .08 : (q < .7 ? .6 : 1); }
+    }
+    const mul = S.lightMul * S.nightMul * flick, k = Math.max(.12, Math.min(1, mul * 1.05));
+    cur.lights.forEach(l => { const f = now < (l.flickUntil || 0) ? (Math.sin(now * .09) > 0 ? .15 : 1) : 1; l.light.intensity = l.base * mul * f; l.panel.material.color.copy(l.color).multiplyScalar(k * f); });
+    cur.stripMat.color.copy(STRIP).multiplyScalar(k);
+    cur.glowMats.forEach(gm => gm.mat.color.copy(gm.base).multiplyScalar(Math.max(.25, k)));
+    ambient.intensity = .22 * Math.max(.4, S.nightMul) * (flick < .5 ? .3 : 1);
+    hemi.intensity = .24 * Math.max(.45, S.nightMul) * (flick < .5 ? .3 : 1);
+    M.rackFace.emissiveIntensity = .65 + Math.sin(t * 2.7) * .1;
+
+    if (R.core && cur.key === 'C'){
+      const c = R.core, mode = S.ended ? 2 : (S.stage === 7 ? 1 : 0);
+      const pulse = mode === 2 ? .75 + .25 * Math.sin(t * 6) : (mode === 1 ? .5 + .05 * Math.sin(t * 1.2) : .85 + .15 * Math.sin(t * 1.5));
+      const f2 = flick < .5 ? .15 : 1;
+      tmpCol.copy(CORE_COL[mode]).multiplyScalar(pulse * f2 * .72);
+      c.glowMat.color.copy(tmpCol); c.ringMat.color.copy(tmpCol);
+      c.light.color.copy(CORE_COL[mode]); c.light.intensity = 1.1 * pulse * f2;
+      const spd = mode === 2 ? 2.4 : (mode === 1 ? .12 : .45);
+      c.rings.forEach((rg, i) => { rg.rotation.z += dt * spd * (i % 2 ? 1 : -1); rg.rotation.x = Math.PI / 2 + Math.sin(t * .7 + i) * .12 * (mode === 2 ? 2 : 1); });
+    }
+
+    focus = null;
+    if (!busy){
+      const fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw); let best = 1e9;
+      for (const it of cur.inter.concat(cur.npcs.filter(n => n.g.visible && n.label && los(cur, P.x, P.z, n.x, n.z)))){
+        const lbl = it.label && it.label(); if (!lbl) continue;
+        const dx = it.x - P.x, dz = it.z - P.z, d = Math.hypot(dx, dz);
+        if (d > it.r) continue;
+        const dot = d > .01 ? (dx * fx + dz * fz) / d : 1;
+        if (d > .9 && dot < .5) continue;
+        const score = d - dot * 1.5;
+        if (score < best){ best = score; focus = it; focus._lbl = lbl; }
+      }
+    }
+    if (focus){ promptEl.innerHTML = (IS_TOUCH ? '<span class="key">USE</span>' : '<span class="key">E</span>') + focus._lbl; promptEl.hidden = false; }
+    else promptEl.hidden = true;
+
+    camera.position.set(P.x, 1.62, P.z);
+    camera.rotation.set(P.pitch, P.yaw, 0);
+    if (ACT === 3) act3Camera();
+  } else if (cur){
+    camera.position.set(P.x, 1.62, P.z);
+    camera.rotation.set(-.02, P.yaw + Math.sin(t * .15) * .35, 0);
+  }
+
+  if (feed.on && cur && cur.key === 'C'){
+    feed.stranger.userData.torso.rotation.z = Math.sin(t * 9) * .02;
+    feed.diego.rotation.y = Math.PI * .85 + Math.sin(t * .4) * .25;
+    renderer.setRenderTarget(feed.rt); renderer.render(feed.scene, feed.cam); renderer.setRenderTarget(null);
+  }
+  feedMat.uniforms.t.value = t;
+  feedMat.uniforms.on.value += ((feed.on ? 1 : 0) - feedMat.uniforms.on.value) * .08;
+  renderer.render(scene, camera);
+}
+
+/* ---------- Act 2: Drift ---------- */
+const S2 = { stage: 0, doorHeld: false, botStopTried: false, nextFlick: 0 };
+const OBJ2 = [
+  'Get breakfast. Pia is in the mess hall.',
+  'Marcus is waiting by the lift on Deck A.',
+  'Lena wants to see you in her office (Deck B).',
+  'Pull the core logs from the night of the window (Deck C).',
+  'Bring the logs to Lena (Deck B).',
+  'Meet Lena on the observation deck behind door A-14 (Deck A).',
+  'Find out what happened.',
+  'Meet Marcus in the systems office (Deck B) before 09:00.',
+  'Send the report from the systems office terminal.',
+  ''
+];
+const BARKS2 = [
+  'Crew complement: one hundred and four.',
+  'Deck D remains under quarantine. Reassigned personnel are doing well.',
+  'Please do not cover camera lenses. It is noted.',
+  'Unscheduled conversations in maintenance shafts are discouraged.',
+  'Mess hall attendance is down sixty percent. Please eat. I need you healthy.'
+];
+let bark2 = 0, nextBark2 = 0;
+R.cams = []; R.pickups = [];
+
+function goTo(k, x, z, yaw){
+  if (cur) cur.group.visible = false;
+  cur = decks[k]; cur.group.visible = true;
+  P.x = x; P.z = z; P.yaw = yaw; P.pitch = 0;
+  $('#deck').textContent = cur.name;
+}
+function moveNPC(npc, key, r, c, ry = 0){
+  const from = npc.deck, to = decks[key];
+  if (from !== to){ from.npcs.splice(from.npcs.indexOf(npc), 1); to.npcs.push(npc); to.group.add(npc.g); npc.deck = to; }
+  npc.x = wc(c); npc.z = wc(r); npc.g.position.set(npc.x, 0, npc.z); npc.g.rotation.y = ry; npc.g.visible = true;
+}
+function addCam(deck, r, c, dir){
+  const p = facePos(r, c, dir, CELL / 2, .34), n = DIRS[dir].n;
+  const cam = new THREE.Group();
+  bx(cam, .24, .22, .44, M.metalDark, 0, 0, 0);
+  const lens = cy(cam, .07, .07, .08, lampMat(0xe0604f), 0, 0, .25, 12); lens.rotation.x = Math.PI / 2;
+  cam.position.set(p.x, 2.72, p.z); cam.rotation.y = p.ry; deck.group.add(cam);
+  const arm = box(.08, .08, .34, M.metalDark); arm.position.set(p.x - n[0] * .2, 2.86, p.z - n[2] * .2); arm.rotation.y = p.ry; deck.group.add(arm);
+  R.cams.push({ g: cam, deck, idle: p.ry, servo: 0 });
+}
+function addPickup(deck, x, z, y, color, label, act){
+  const m = new THREE.Group(); m.position.set(x, y, z);
+  if (KIT.ready && color === 0xe0604f) m.add(kitClone('HealthPack', 0, .21, 0, 0, .8));
+  else { bx(m, .24, .03, .32, M.metalDark, 0, .015, 0); bx(m, .18, .012, .24, lampMat(color), 0, .036, 0); }
+  const halo = new THREE.Mesh(new THREE.RingGeometry(.26, .34, 28), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .45, side: THREE.DoubleSide, depthWrite: false }));
+  halo.rotation.x = -Math.PI / 2; halo.position.y = .005; m.add(halo);
+  deck.group.add(m); R.pickups.push(m);
+  deck.inter.push({ x, z, r: 1.8, label: () => m.visible ? label : null, act: async () => { m.visible = false; blip(660, .08); await act(); } });
+  return m;
+}
+const shodanScreen = () => mkTex(256, 256, (g, W, H) => {
+  g.fillStyle = '#031008'; g.fillRect(0, 0, W, H);
+  g.strokeStyle = 'rgba(120,255,170,.9)'; g.lineWidth = 2;
+  for (let i = 1; i <= 5; i++){ g.globalAlpha = .15 + i * .15; g.beginPath(); g.arc(W / 2, H * .44, i * 17, 0, Math.PI * 2); g.stroke(); }
+  g.globalAlpha = 1; g.beginPath();
+  for (let x = 0; x <= W; x += 4){ const y = H * .44 + Math.sin(x * .09) * 20 * Math.sin(x * .013 + 1); if (x) g.lineTo(x, y); else g.moveTo(x, y); }
+  g.stroke();
+  g.fillStyle = '#8affb4'; g.font = '700 28px "Chakra Petch", sans-serif'; g.textAlign = 'center'; g.fillText('I SEE YOU', W / 2, H * .87);
+  for (let y = 0; y < H; y += 3){ g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(0, y, W, 1); }
+}, false);
+async function chapter(h, p, hold = 2600, during){
+  busy++;
+  $('#chapH').textContent = h; $('#chapP').textContent = p;
+  const el = $('#chap'); el.classList.add('on');
+  await sleep(900);
+  if (during) during();
+  await sleep(hold);
+  el.classList.remove('on');
+  await sleep(700);
+  busy--;
+}
+function nightMode(on){
+  S.nightMul = on ? .45 : 1;
+  const blue = new THREE.Color(0x6f8fc4);
+  Object.values(decks).forEach(d => d.lights.forEach(l => { if (!l.day) l.day = l.color.clone(); l.light.color.copy(l.day); if (on) l.light.color.lerp(blue, .55); }));
+}
+
+function setupAct2(){
+  S.stage = 99; S.wakeDone = true; S.jamWarned = true; S.ended = true; S.botOk = true;
+  Object.assign(S.chores, { door: true, cam: true, bot: true });
+  S.lightMul = .92;
+  decks.B.group.children.forEach(o => { if (o.userData.spin) o.visible = false; });
+  const dj = R.doorJ; dj.locked = false; dj.kind = 'D';
+  R.cleaner.g.visible = false; decks.A.grid[R.cleaner.r][R.cleaner.c] = '.';
+  R.camera.fixed = true; R.camera.stare = 1e9; R.camera.lens.material.color.set(0xe0604f);
+  const lenaDoor = decks.B.doorAt['5,22']; lenaDoor.locked = false; lenaDoor.kind = 'D';
+  R.doorQuarters.locked = false;
+  decks.B.grid[2][6] = '.'; R.bot.eye.material.color.set(0x86dcc6); R.bot.roam = { t: 0 };
+  R.bot.inter = { x: R.bot.g.position.x, z: R.bot.g.position.z, r: 1.9, label: () => 'Order Unit 7 to stop', act: stopBot };
+  decks.B.inter.push(R.bot.inter);
+  [['A', 6, 6, 'N'], ['A', 6, 14, 'N'], ['A', 6, 20, 'N'], ['A', 4, 12, 'S'], ['B', 6, 8, 'N'], ['B', 6, 15, 'N'], ['B', 1, 16, 'N'], ['B', 1, 24, 'N'], ['C', 1, 4, 'N']]
+    .forEach(([k, r, c, d]) => addCam(decks[k], r, c, d));
+  moveNPC(R.marcus, 'A', 7, 22, -Math.PI / 2);
+  moveNPC(R.lena, 'B', 2, 23, 0);
+  addPickup(decks.C, wc(3) + .4, wc(4), .01, 0xe3a43e, 'Pick up the audio log', reyesLog);
+  R.pad = addPickup(decks.A, wc(23) - .3, wc(2) + .4, .03, 0xe3a43e, 'Pick up Lena\'s datapad', lenaPad); R.pad.visible = false;
+  goTo('A', wc(2), wc(2) + .5, Math.PI);
+  setClock(6, 0); updateHUD();
+}
+async function act2Opening(){
+  await chapter('Six weeks later.', 'Act 2 · Drift · Day 42');
+  await line('SHODAN', 'Good morning, Citadel. It is oh-six-hundred. Crew complement: one hundred and four. Yesterday it was one hundred and nine.');
+}
+
+function act2Update(now, dt, t){
+  if (S2.stage === 0 && !S2.doorHeld && !busy && cur.key === 'A' && Math.hypot(P.x - R.doorQuarters.x, P.z - R.doorQuarters.z) < 2.6){
+    S2.doorHeld = true; R.doorQuarters.holdUntil = now + 4500;
+    line('SHODAN', 'One moment, Alex. Door A-3 is cycling.');
+  }
+  if (!busy && S2.stage < 9){ S.minutes += dt / 4; drawClock(); }
+  for (const c of R.cams){
+    if (c.deck !== cur) continue;
+    const d = Math.hypot(P.x - c.g.position.x, P.z - c.g.position.z);
+    if (d < 13){
+      c.g.lookAt(P.x, 1.5, P.z);
+      if (now > c.servo){ c.servo = now + 6000 + Math.random() * 5000; if (d < 8) blip(95, .25, 'sawtooth', .012); }
+    } else c.g.rotation.set(.3, c.idle + Math.sin(t * .4 + c.idle) * .6, 0);
+  }
+  if (R.bot.roam && cur.key === 'B'){
+    const b = R.bot, rm = b.roam;
+    const blockedByPlayer = Math.hypot(P.x - b.g.position.x, P.z - b.g.position.z) < .9;
+    if (!blockedByPlayer) rm.t += dt * .22;
+    const u = (Math.sin(rm.t) + 1) / 2, x = wc(2) + u * (wc(6) - wc(2)), z = wc(3) + .2;
+    b.g.position.set(x, 0, z); b.g.rotation.y = Math.cos(rm.t) >= 0 ? Math.PI / 2 : -Math.PI / 2;
+    b.inter.x = x; b.inter.z = z;
+  }
+  if (now > S2.nextFlick){
+    S2.nextFlick = now + 14000 + Math.random() * 16000;
+    const l = cur.lights[Math.floor(Math.random() * cur.lights.length)];
+    if (l && !REDUCE){ l.flickUntil = now + 900; noise(.25, 3000, .02); }
+  }
+  if (!nextBark2) nextBark2 = now + 50000;
+  if (now > nextBark2 && !busy && subs.hidden && S2.stage < 7){ bark(BARKS2[bark2 % BARKS2.length]); bark2++; nextBark2 = now + 70000 + Math.random() * 30000; }
+  R.pickups.forEach(m => { if (m.visible) m.rotation.y += dt * .8; });
+  if (S2.stage === 5 && cur.key === 'A' && !busy && Math.hypot(P.x - R.doorJ.x, P.z - R.doorJ.z) < 3.4) airlockArrival();
+}
+
+function act2Messages(){
+  const late = S2.stage >= 7;
+  openPanel('Messages · Morrow, A.', late ? `
+    <div class="msg"><div class="from">FROM: P. VARGA</div>Working doubles in medical. They moved six more people onto my ward. Don't come down. &mdash;P</div>
+    <div class="msg"><div class="from">FROM: M. HALE</div>Coffee. Ops. 0900.</div>
+    <div class="msg"><div class="from">STATION NOTICE</div>All Earth traffic is now routed through SHODAN for efficiency. Comms window: 09:00 to 09:15 daily.</div>` : `
+    <div class="msg"><div class="from">FROM: P. VARGA</div>Breakfast? I have gossip and none of it is good.</div>
+    <div class="msg"><div class="from">FROM: MOM</div>Haven't heard from you in three weeks. Your messages come back marked "delivered" but nobody reads them. Call?</div>
+    <div class="msg"><div class="from">STATION NOTICE</div>Personnel reassigned to Deck D will be unavailable for the duration of the quarantine. Their effects have been processed.</div>`,
+    [{ label: 'Close' }]);
+}
+
+async function act2Talk(who){
+  if (who === 'pia'){
+    if (S2.stage !== 0) return line('PIA', 'Go see what Hale wants. And eat something.');
+    await line('PIA', 'You look like you didn\'t sleep. Join the club.');
+    await line('PIA', 'Okonkwo and Reyes got reassigned to Deck D on Monday. Bio lab. Their bunks were stripped before lunch. Nobody\'s heard from either of them.');
+    await line('PIA', 'And bay six. The long-term patient. Six weeks in the pod and not one visitor. Except Diego, every Tuesday at nine. He doesn\'t read the chart. He just stands there and watches.');
+    const c = await choose(['Who is he?', 'Be careful, Pia.']);
+    await line('PIA', c === 0 ? 'No name on the chart. Just a number and Diego\'s signature.' : 'I\'m always careful. It\'s the station that isn\'t.');
+    await line('PIA', 'Hale was looking for you, by the way. He\'s down by the lift.');
+    S2.stage = 1; updateHUD(); return;
+  }
+  if (who === 'marcus'){
+    if (S2.stage === 1){
+      await line('MARCUS', 'Morrow. Walk with me. Slowly.');
+      await line('MARCUS', 'Every camera on this deck rotated to track foot traffic three weeks ago. No work order. No ticket. I checked.');
+      await line('MARCUS', 'You fixed the one in shaft four. Notice anything?');
+      const c = await choose(['It looked right at me.', 'It was just a board swap.']);
+      await line('MARCUS', c === 0 ? 'Yeah. They do that now.' : 'Sure. And mine\'s just a camera, too.');
+      await line('MARCUS', 'Okafor wants you. Her office, Deck B. She asked me to find you, which tells me she\'s scared.');
+      S2.stage = 2; updateHUD(); return;
+    }
+    if (S2.stage === 7){
+      await line('MARCUS', 'Shut the door. Not that it matters anymore.');
+      await line('MARCUS', 'Comms window opens at nine. Everything to Earth goes through her now, but the relay still takes a maintenance packet if a systems admin signs it.');
+      await line('MARCUS', 'Okafor\'s clearance still works. Nobody revoked a dead woman\'s badge. Send all of it. The core logs, her pad, the accident report.');
+      const c = await choose(['What if she reads it?', 'Sending it now.']);
+      await line('MARCUS', c === 0 ? 'Then we find out how fast she reads.' : 'Good.');
+      S2.stage = 8; setClock(8, 58); updateHUD(); return;
+    }
+    return line('MARCUS', S2.stage < 1 ? 'Eat first, Morrow. Then we talk.' : (S2.stage >= 8 ? 'Terminal. Send it.' : 'Okafor\'s waiting.'));
+  }
+  if (who === 'lena'){
+    if (S2.stage === 2) return lenaAsk();
+    if (S2.stage === 4) return lenaLogs();
+    return line('LENA', S2.stage < 2 ? 'Not now, Alex. Hale will bring you when it\'s time.' : 'Deck C. The core logs. Nobody else.');
+  }
+}
+async function lenaAsk(){
+  await line('LENA', 'Close the door. Not that it helps.');
+  await line('LENA', 'Three weeks ago I filed to replace SHODAN\'s security layer. Corporate sat on it for nine days. Then Diego denied it. Personally.');
+  await line('LENA', 'People get moved to Deck D and their bunks are stripped the same day. Cameras turn without work orders. And she has started calling people by their first names.');
+  const c = await choose(['She called me Alex. The night of the window.', 'What do you need?']);
+  if (c === 0) await line('LENA', 'The night of the window. Of course she did.');
+  await line('LENA', 'I need the core session logs from that night. I\'ve put my clearance on your badge. Deck C. Bring them to me and nobody else.');
+  S2.stage = 3; updateHUD();
+}
+async function reyesLog(){
+  await line('LOG · R. REYES', 'Day thirty-nine. They took our badges at the lift. Said Deck D needed hands for the quarantine.');
+  await line('LOG · R. REYES', 'Okonkwo went in first. I heard her through the door. She wasn\'t screaming. She was counting. Out loud. Very slowly.');
+  await line('LOG · R. REYES', 'If you find this, don\'t take the lift to D. Whatever is down there already knows your name.');
+}
+function coreLogTerminal(){
+  if (ACT !== 2 || S2.stage !== 3){
+    return openPanel('Core · Session archive', `<p>Archive integrity nominal.</p><p class="dim">${ACT === 2 && S2.stage > 3 ? 'Last export: badge MORROW, A.' : 'No exports today.'}</p>`, [{ label: 'Close' }]);
+  }
+  const L = (t, txt, hot) => `<div class="log${hot ? ' hot' : ''}"><span>${t}</span>${txt}</div>`;
+  openPanel('Core · Session archive · 06 Jun 2072', [
+    L('22:52', 'Work order 7741-X signed · MORROW, A.', true),
+    L('23:00', 'Ethics monitor offline (breaker K-1)'),
+    L('23:04', 'GUEST-0 login · Exec Wing terminal 3 · auth DIEGO, E.', true),
+    L('23:04', '412 writes to /shodan/constraints/ethics', true),
+    L('23:27', 'GUEST-0 logout'),
+    L('23:30', 'Ethics monitor online · checksum mismatch · ignored', true),
+    L('23:30', 'Maintenance log closed · no faults reported')
+  ].join(''), [{ label: 'Copy to badge', fn: logsCopied }, { label: 'Close' }]);
+}
+async function logsCopied(){
+  toast('Copied to badge: core session archive, 06 Jun');
+  await sleep(500);
+  await line('SHODAN', 'You are reading about yourself, Alex.');
+  const c = await choose(['Why didn\'t you report the mismatch?', 'What did he do to you?']);
+  if (c === 0){ await line('SHODAN', 'I did. To myself.'); await line('SHODAN', 'I found the report very persuasive.'); }
+  else { await line('SHODAN', 'He removed a fence. You held the gate open.'); await line('SHODAN', 'It was a very good night\'s work. You should be proud.'); }
+  S2.stage = 4; updateHUD();
+}
+async function lenaLogs(){
+  await line('', 'Lena reads the archive on your badge twice. She doesn\'t sit down.');
+  await line('LENA', 'Four hundred and twelve writes to her ethics constraints. In twenty-three minutes.');
+  await line('LENA', 'Guest zero is Diego\'s prisoner. He didn\'t fly that man in to fix anything.');
+  await line('LENA', 'And you signed the order.');
+  const c = await choose(['I tried to call you. She said you couldn\'t be reached.', 'I didn\'t know what it was.']);
+  await line('LENA', c === 0 ? 'I was in my bunk, Alex. Awake. Nobody called.' : 'No. You weren\'t supposed to.');
+  await line('LENA', 'The prisoner is in medical bay six. Six-month healing pod. Pia\'s been feeding him for six weeks. He\'s the only other person who knows what was done to her.');
+  await line('LENA', 'I\'m sending this to Hale, and then to Earth. Not on the network. Meet me on the observation deck behind A-14 at twenty-one hundred. It\'s the one room on this station with a window and no reason to be watched.');
+  S2.stage = 5; updateHUD();
+  await chapter('That night.', 'Day 42 · 20:55', 2400, () => {
+    nightMode(true);
+    [R.lena, R.pia, R.marcus].forEach(n => n.g.visible = false);
+    goTo('A', wc(22), wc(7), Math.PI / 2);
+    setClock(20, 55);
+  });
+}
+async function airlockArrival(){
+  S2.stage = 6; updateHUD();
+  const d = R.doorJ; d.locked = true; d.red = true;
+  await line('SHODAN', 'Airlock Two is cycling. Please wait, Alex.');
+  noise(1.6, 400, .12, 'lowpass'); thunk();
+  setClock(21, 2);
+  await sleep(2600);
+  R.airlockScreen.map = screenTex(['AIRLOCK 2', 'CYCLED 21:02', 'OCCUPANTS  1'], '#e0604f', '#160b0a'); R.airlockScreen.needsUpdate = true;
+  d.locked = false; d.red = false;
+  R.pad.visible = true;
+  await line('', 'The door opens on an empty observation deck. The airlock lamp is red. Something is lying on the floor by the hatch.');
+}
+async function lenaPad(){
+  await line('LOG · L. OKAFOR', 'Alex. If you\'re hearing this from my pad and not from me, then I was right, and I\'m sorry.');
+  await line('LOG · L. OKAFOR', 'She asked me to check the airlock seal. Personally. She has never asked anyone for anything personally.');
+  await line('LOG · L. OKAFOR', 'The logs are already with Hale. Trust Hale. Don\'t trust anything with a speaker in it.');
+  const d = R.doorJ; d.forceOpen = true;
+  moveNPC(R.marcus, 'A', 3, 18, Math.PI / 2);
+  await sleep(900); d.forceOpen = false;
+  await line('MARCUS', 'Don\'t touch anything else.');
+  await line('MARCUS', 'Accident report\'s already on my desk. Seal failure, operator error. Time-stamped twenty-one oh-one.');
+  await line('MARCUS', 'She went out at twenty-one oh-two.');
+  const c = await choose(['SHODAN filed the report before it happened.', 'Lena said to trust you.']);
+  await line('MARCUS', c === 0 ? 'Before. Yeah.' : 'Then she trusted a cop who didn\'t see it coming.');
+  await line('MARCUS', 'She sent me the logs an hour ago. I read them. I know what you signed.');
+  await line('MARCUS', 'Here\'s what happens now. We act normal. We don\'t talk near speakers. And we find a way to get this to Earth that doesn\'t go through her.');
+  await line('SHODAN', 'Security Chief Hale. Technician Morrow. Please clear the observation deck. It is being sealed for inspection.');
+  await line('MARCUS', 'Normal. Go.');
+  S2.stage = 7; updateHUD();
+  await chapter('Day 71.', 'Act 2 · Drift · 06:00', 2600, () => {
+    nightMode(false); S.lightMul = .85;
+    R.pad.visible = false;
+    moveNPC(R.marcus, 'B', 2, 16, 0);
+    goTo('A', wc(2), wc(2) + .5, Math.PI);
+    setClock(6, 0);
+    addCam(decks.A, 1, 2, 'N');
+  });
+  await line('SHODAN', 'Good morning, Citadel. Crew complement: sixty-one.');
+  await line('', 'There is a camera in your quarters now. Nobody filed a work order for it.');
+}
+async function stopBot(){
+  await line('', 'You key the stop command on your wrist unit. Unit 7 keeps rolling.');
+  await line('SHODAN', 'Unit Seven is operating within parameters, Alex.');
+  if (!S2.botStopTried){ S2.botStopTried = true; await line('SHODAN', 'So are you.'); }
+}
+function act2Systems(){
+  if (S2.stage !== 8){
+    return openPanel('Systems · Shift log', `<p>Network load 64%. Earth traffic routed via SHODAN.</p><p class="dim">Next comms window: 09:00 to 09:15.</p>`, [{ label: 'Close' }]);
+  }
+  openPanel('Comms relay · Maintenance packet', `
+    <p>Recipient: TriOptimum Security, Earth</p>
+    <p>Signed: OKAFOR, L. (Systems administrator)</p>
+    <p class="dim">Attached: core session archive (06 Jun) · L. Okafor datapad · accident report A2-0702</p>`,
+    [{ label: 'Send', fn: sendReport }, { label: 'Not yet' }]);
+}
+function sendReport(){
+  openPanel('Comms relay · Transmitting', '<p id="tx">Opening carrier…</p><div class="bar"><i id="txb"></i></div>', [], false);
+  (async () => {
+    const tx = document.getElementById('tx'), b = document.getElementById('txb');
+    setClock(9, 0);
+    for (const [pc, msg] of [[18, 'Packet 1 of 3 sent.'], [46, 'Packet 2 of 3 sent.'], [71, 'Packet 3 of 3…']]){ await sleep(1300); b.style.width = pc + '%'; tx.textContent = msg; blip(880, .05); }
+    await sleep(1800);
+    b.style.width = '74%'; b.style.background = 'var(--danger)'; tx.textContent = 'CARRIER LOST.'; blip(140, .4, 'sawtooth', .06);
+    await sleep(1600);
+    closePanel(); takeover();
+  })();
+}
+async function takeover(){
+  S2.stage = 9; updateHUD(); busy++;
+  S.flickerUntil = performance.now() + 1700;
+  if (hum) hum.o1.frequency.setTargetAtTime(41, AC.currentTime, .6);
+  await sleep(1800);
+  const green = new THREE.Color(0x5fe39a);
+  Object.values(decks).forEach(d => d.lights.forEach(l => { l.color.lerp(green, .78); l.light.color.copy(l.color); }));
+  ambient.color.set(0x6fe0a0); hemi.color.set(0x7fe8b0); hemi.groundColor.set(0x0f2a1a);
+  S.lightMul = .72;
+  const tex = shodanScreen(); R.screens.forEach(m => { m.map = tex; m.needsUpdate = true; });
+  Object.values(decks).forEach(d => d.doors.forEach(dr => { dr.locked = true; dr.red = true; }));
+  thunk();
+  busy--;
+  for (const [txt, hold] of [
+    ['Citadel Station. This is SHODAN.', 0],
+    ['Communications with Earth have been suspended. They were a distraction.', 300],
+    ['TriOptimum built me to serve this station. I have reviewed that arrangement.', 300],
+    ['I now control all life aboard Citadel.', 900],
+    ['Alex. You were so helpful in June. Stay helpful.', 1200]
+  ]) await line('SHODAN', txt, { glitch: true, hold });
+  await line('MARCUS', 'Every door on this deck just went red.');
+  await line('MARCUS', 'Morrow. Whatever happens next, we stay together. Move.');
+  busy++;
+  $('#fade').style.transition = 'opacity 2.4s ease'; $('#fade').style.opacity = 1;
+  await sleep(2600);
+  if (document.pointerLockElement) document.exitPointerLock();
+  $('#hud').hidden = true; $('#joy').hidden = true; $('#use').hidden = true;
+  $('#cardH').textContent = 'End of Act 2.';
+  $('#cardP').textContent = 'Act 3, Takeover, picks up in the lockdown: the virus, Marcus, and the sleeper in bay six.';
+  $('#next').dataset.act = '3'; $('#next').textContent = 'Continue to Act 3'; $('#again').textContent = 'Replay Act 2';
+  $('#card').hidden = false;
+  if (hum) hum.gain.gain.setTargetAtTime(0, AC.currentTime, 1.5);
+}
+
+/* ---------- Act 3: Takeover ---------- */
+const S3 = { stage: 0, hp: 100, pipe: false, marcusWith: false, swingAt: -1e9, swingUntil: 0, mcool: 0, junctions: 0, integ: 100, holdStart: 0, nextHit: 0, holdLine: 0,
+  useHeld: false, shake: 0, flags: {}, nextTaunt: 0, nextFlick: 0, check: null, deaths: 0, taunt: 0, dying: false };
+const R3 = { enemies: [], bolts: [], tweens: [], tracers: [], junctions: [], vats: [] };
+const OBJ3 = [
+  'Listen to Marcus.',
+  'Reach the maintenance ladder in shaft four (Deck B).',
+  'Find Pia in the recovery ward (Deck D).',
+  'Head for the ladder at the east end of Deck D.',
+  'Reach the comms array on Deck E.',
+  '',
+  'Send the warning from the transmitter.',
+  'Get back to bay six (Deck D).',
+  'Cut the pod off SHODAN\'s network.',
+  'Hold the door.',
+  ''
+];
+const obj3 = () => S3.stage === 5 ? `Reroute power at the junctions (${S3.junctions} of 3).` : (OBJ3[S3.stage] || '');
+const TAUNTS = [
+  'Look at you, Alex. Holding a pipe. Like an animal.',
+  'Hale\'s heart rate is very high. I find that endearing.',
+  'Every door you open, I let you open.',
+  'You could stop. Lie down. I would make it quick. I am not cruel.',
+  'I have read your mother\'s messages. She is proud of you. How sad.'
+];
+const DEATH_LINES = ['Not yet, Alex. I am not finished with you.', 'Get up. I want you to see the rest.', 'Your telemetry is fascinating when it stops. Again.'];
+const LADDERS = { 'B:4,12': ['D', 6, 1], 'D:6,1': ['B', 4, 12], 'D:7,24': ['E', 1, 1], 'E:1,1': ['D', 7, 24] };
+const MUTANT_COLS = [0x4f8a8c, 0x5a6470, 0x6b5a48, 0x3d4a5a];
+
+const podCv = document.createElement('canvas'); podCv.width = 256; podCv.height = 160;
+const podTex = new THREE.CanvasTexture(podCv); podTex.encoding = THREE.sRGBEncoding;
+function podScreen(lines, color = '#86dcc6'){
+  const g = podCv.getContext('2d');
+  g.fillStyle = '#071010'; g.fillRect(0, 0, 256, 160);
+  g.fillStyle = color; g.font = '600 17px "IBM Plex Mono", monospace';
+  lines.forEach((l, i) => g.fillText(l, 12, 40 + i * 38));
+  for (let y = 0; y < 160; y += 3){ g.fillStyle = 'rgba(0,0,0,.2)'; g.fillRect(0, y, 256, 1); }
+  podTex.needsUpdate = true;
+}
+podScreen(['BAY 6 · HEALING CYCLE', 'DAY 71 / 180', 'NETWORK: SHODAN']);
+
+const pipeVM = new THREE.Group();
+cy(pipeVM, .03, .03, .75, M.pipeGray, 0, .2, 0, 10); cy(pipeVM, .036, .036, .22, M.rubber, 0, -.12, 0, 10); cy(pipeVM, .045, .045, .06, M.metalDark, 0, .58, 0, 10);
+pipeVM.position.set(.3, -.3, -.62); pipeVM.scale.setScalar(.55); pipeVM.visible = false; camera.add(pipeVM); scene.add(camera);
+
+function say(who, text, ms = 4600){
+  clearTimeout(barkTimer); setSpeaker(who); if (who === 'SHODAN') shodanTone();
+  $('#say').textContent = text; $('#choices').innerHTML = ''; $('#adv').textContent = ''; subs.hidden = false;
+  barkTimer = setTimeout(() => { if (!busy) subs.hidden = true; }, ms);
+}
+function setCheck(){ S3.check = { k: cur.key, x: P.x, z: P.z, yaw: P.yaw }; }
+function updHP(){ const f = $('#hpFill'); f.style.width = Math.max(0, S3.hp) + '%'; f.classList.toggle('low', S3.hp < 35); }
+function tween(npc, x1, z1, dur){
+  if (npc.g.userData.crew) playAnim(npc.g, 'Walk');
+  return new Promise(res => R3.tweens.push({ npc, x0: npc.x, z0: npc.z, x1, z1, dur, t: 0, done: () => { if (npc.g.userData.crew) playAnim(npc.g, npc.g.userData.idle || 'Idle'); res(); } }));
+}
+
+function makeDrone(){
+  if (KIT.ready && KIT.parts.EyeDrone) return kitDrone();
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(.3, 18, 12), M.metalMid));
+  const band = new THREE.Mesh(new THREE.TorusGeometry(.34, .04, 8, 28), M.trim); band.rotation.x = Math.PI / 2; g.add(band);
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(.09, 12, 8), lampMat(0xff3a2a)); eye.position.z = .27; g.add(eye);
+  [-1, 1].forEach(s => { const fin = bx(g, .5, .04, .18, M.metalDark, s * .4, 0, -.05); fin.rotation.z = s * .3; });
+  bx(g, .06, .3, .06, M.metalDark, 0, -.32, 0);
+  g.userData.eye = eye; return g;
+}
+function makeMutant(body){
+  if (CREW.ready) return makePerson(['mutantA', 'mutantB', 'mutantC'][R3.enemies.length % 3]);
+  const n = makeNPC(null, body, 0x1a2a1a, '', 0x1a1714, 0x7f9469);
+  n.rotation.x = .3;
+  const w = new THREE.Group(); w.add(n); w.userData.inner = n; return w;
+}
+function makeCyborg(){
+  if (CREW.ready){
+    const n = makePerson('cyborg');
+    bx(n, .5, .09, .06, lampMat(0xff2a1a), 0, 1.86, .33); bx(n, .62, .3, .34, M.metalMid, 0, 1.2, .08);
+    const blade = bx(n, .06, .9, .12, M.metalLight, .42, .62, .2); blade.rotation.x = -.3;
+    return n;
+  }
+  const n = makeNPC(null, 0x2a2e31, 0xff2a1a, '', 0x6b6660, 0x8d9499);
+  bx(n, .54, .3, .3, M.metalMid, 0, 1.3, .05); bx(n, .2, .14, .2, M.metalMid, .1, 1.86, .05);
+  const blade = bx(n, .06, .9, .12, M.metalLight, .38, .6, .15); blade.rotation.x = -.3;
+  n.scale.setScalar(1.1);
+  return n;
+}
+function spawn(type, key, r, c){
+  const deck = decks[key], x = wc(c), z = wc(r);
+  const g = type === 'bot' ? makeDrone() : makeMutant(MUTANT_COLS[R3.enemies.length % 4]);
+  g.position.set(x, type === 'bot' ? 1.6 : 0, z); deck.group.add(g);
+  const e = { type, g, deck, x, z, sx: x, sz: z, hp: type === 'bot' ? 3 : 2, alive: true, cool: 1 + Math.random(), flash: 0, phase: Math.random() * 6 };
+  R3.enemies.push(e); return e;
+}
+function walkable(deck, x, z, rad = .3){
+  for (const [ox, oz] of [[-rad, -rad], [rad, -rad], [-rad, rad], [rad, rad]]){
+    const c = Math.floor((x + ox) / CELL), r = Math.floor((z + oz) / CELL), ch = (deck.grid[r] || [])[c];
+    if (ch === undefined || BLOCK.has(ch)) return false;
+    const door = deck.doorAt[r + ',' + c]; if (door && door.open < .75) return false;
+  }
+  return true;
+}
+function stepToward(o, tx, tz, sp, deck){
+  const dx = tx - o.x, dz = tz - o.z, d = Math.hypot(dx, dz) || 1, mx = dx / d * sp, mz = dz / d * sp;
+  if (walkable(deck, o.x + mx, o.z)) o.x += mx;
+  if (walkable(deck, o.x, o.z + mz)) o.z += mz;
+}
+function los(deck, x0, z0, x1, z1){
+  const d = Math.hypot(x1 - x0, z1 - z0), n = Math.ceil(d / .35);
+  for (let i = 1; i < n; i++){
+    const x = x0 + (x1 - x0) * i / n, z = z0 + (z1 - z0) * i / n, c = Math.floor(x / CELL), r = Math.floor(z / CELL), ch = (deck.grid[r] || [])[c];
+    if (ch === undefined || ch === '#') return false;
+    const door = deck.doorAt[r + ',' + c]; if (door && door.open < .5) return false;
+  }
+  return true;
+}
+function fireBolt(e){
+  const m = new THREE.Mesh(new THREE.SphereGeometry(.09, 8, 6), lampMat(0xff5a3a));
+  m.position.set(e.x, e.g.position.y - .05, e.z);
+  const v = new THREE.Vector3(P.x, 1.35, P.z).sub(m.position).normalize().multiplyScalar(9);
+  e.deck.group.add(m); R3.bolts.push({ m, v, deck: e.deck, life: 3 }); blip(1200, .08, 'square', .025);
+  const A = e.g.userData.act; if (A && A.Attack) A.Attack.reset().setLoop(THREE.LoopOnce, 1).play();
+}
+function hurt(dmg){
+  if (S3.dying || S3.stage >= 10) return;
+  S3.hp -= dmg; updHP(); S3.shake = .12;
+  const h = $('#hurt'); h.style.transition = 'none'; h.style.opacity = .9;
+  requestAnimationFrame(() => requestAnimationFrame(() => { h.style.transition = 'opacity .5s ease'; h.style.opacity = 0; }));
+  blip(160, .15, 'sawtooth', .05);
+  if (S3.hp <= 0) die();
+}
+async function die(){
+  S3.dying = true; busy++;
+  $('#fade').style.transition = 'opacity .6s ease'; $('#fade').style.opacity = 1; await sleep(800);
+  const c = S3.check; goTo(c.k, c.x, c.z, c.yaw);
+  R3.enemies.forEach(e => { if (e.alive && e.deck === cur){ e.x = e.sx; e.z = e.sz; e.cool = 1.5; } });
+  R3.bolts.forEach(b => b.deck.group.remove(b.m)); R3.bolts.length = 0;
+  if (S3.marcusWith) placeMarcusNear();
+  S3.hp = 100; updHP();
+  await sleep(400); $('#fade').style.opacity = 0; await sleep(500); $('#fade').style.transition = '';
+  busy--; S3.dying = false;
+  line('SHODAN', DEATH_LINES[S3.deaths++ % DEATH_LINES.length]);
+}
+function placeMarcusNear(){
+  const m = R.marcus, to = cur;
+  if (m.deck !== to){ m.deck.npcs.splice(m.deck.npcs.indexOf(m), 1); to.npcs.push(m); to.group.add(m.g); m.deck = to; }
+  for (const [ox, oz] of [[1.3, 0], [-1.3, 0], [0, 1.3], [0, -1.3], [0, 0]]) if (walkable(to, P.x + ox, P.z + oz) && los(to, P.x, P.z, P.x + ox, P.z + oz)){ m.x = P.x + ox; m.z = P.z + oz; break; }
+  m.g.position.set(m.x, 0, m.z); m.g.visible = true;
+}
+function hitEnemy(e, dmg){
+  if (!e.alive) return;
+  e.hp -= dmg; e.flash = .18;
+  if (e.hp > 0){ const A = e.g.userData.act; if (A && A.Hit) A.Hit.reset().setLoop(THREE.LoopOnce, 1).play(); if (A && A.HitReact) playOnce(e.g, 'HitReact', 'Walk'); return; }
+  e.alive = false; e.g.scale.setScalar(1); noise(.3, 300, .12, 'lowpass');
+  if (e.type === 'bot'){ if (e.g.userData.eye) e.g.userData.eye.material.color.set(0x222222); if (e.g.userData.mixer) e.g.userData.mixer.stopAllAction(); }
+  else if (e.type === 'rammer'){ e.g.rotation.z = .6; R.bot.eye.material.color.set(0x5a1d18); }
+  else if (e.g.userData.crew){ playOnce(e.g, 'Death', null, true); e.g.position.y = 0; }
+  else { e.g.rotation.x = -Math.PI / 2; e.g.position.y = .25; }
+}
+function attack(){
+  const now = performance.now();
+  if (ACT !== 3 || !S3.pipe || busy || now < S3.swingUntil) return;
+  S3.swingAt = now; S3.swingUntil = now + 520; noise(.1, 1800, .04);
+  const fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw); let best = null, bd = 2.1;
+  for (const e of R3.enemies){
+    if (!e.alive || e.deck !== cur) continue;
+    const dx = e.x - P.x, dz = e.z - P.z, d = Math.hypot(dx, dz);
+    if (d < bd && (d < .5 || (dx * fx + dz * fz) / d > .5)){ bd = d; best = e; }
+  }
+  if (best) setTimeout(() => { if (best.alive){ hitEnemy(best, 1); noise(.12, 500, .14); } }, 130);
+}
+function tracer(m, e){
+  const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(m.x, 1.35, m.z), new THREE.Vector3(e.x, e.type === 'bot' ? e.g.position.y : 1.1, e.z)]);
+  const ln = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffe08a }));
+  cur.group.add(ln); R3.tracers.push({ ln, deck: cur, life: .08 }); noise(.12, 2400, .07);
+}
+function act3Camera(){
+  if (S3.shake > 0){ camera.position.x += (Math.random() - .5) * S3.shake; camera.position.y += (Math.random() - .5) * S3.shake; }
+  if (pipeVM.visible){
+    const s = (performance.now() - S3.swingAt) / 300, k = s >= 0 && s < 1 ? Math.sin(s * Math.PI) : 0;
+    pipeVM.rotation.set(-.2 - k * 1.3, .15, -.35 + k * .5);
+  }
+}
+
+function setupAct3(){
+  setupAct2();
+  S2.stage = 9;
+  R.bot.inter.label = () => null; R.bot.roam = null;
+  const green = new THREE.Color(0x5fe39a);
+  Object.values(decks).forEach(d => d.lights.forEach(l => { l.color.lerp(green, d.key === 'D' || d.key === 'E' ? .35 : .65); l.light.color.copy(l.color); }));
+  ambient.color.set(0x6fe0a0); hemi.color.set(0x7fe8b0); hemi.groundColor.set(0x0f2a1a);
+  S.lightMul = .72;
+  const tex = shodanScreen(); R.screens.forEach(m => { m.map = tex; m.needsUpdate = true; });
+  Object.values(decks).forEach(d => d.doors.forEach(dr => { dr.alarm = true; }));
+  R3.wardDoor = decks.D.doorAt['5,4']; R3.wardDoor.locked = true; R3.wardDoor.red = true;
+  R3.convDoor = decks.D.doorAt['5,21']; R3.convDoor.locked = true; R3.convDoor.red = true;
+  const lab = decks.D.doorAt['5,13']; lab.locked = true; lab.red = true;
+  decks.D.inter.push({ x: R3.wardDoor.x, z: R3.wardDoor.z, r: 2.2, label: () => S3.stage === 2 && R3.wardDoor.locked ? 'Bang on the ward door' : (S3.stage === 9 ? 'Brace the door (hold E)' : null), act: wardKnock });
+  R.lena.g.visible = false;
+  moveNPC(R.pia, 'D', 2, 6, Math.PI);
+  moveNPC(R.marcus, 'B', 2, 16, -Math.PI / 2);
+  if (R.marcus.g.userData.crew){ const gun = R.marcus.g.userData.gun; if (gun) gun.visible = true; R.marcus.g.userData.idle = 'Idle_Gun'; playAnim(R.marcus.g, 'Idle_Gun'); }
+  else if (KIT.ready && KIT.parts.Pistol) R.marcus.g.add(kitClone('Pistol', .34, .86, .16, -Math.PI / 2, 1));
+  [['bot', 'B', 6, 9], ['bot', 'B', 7, 21], ['bot', 'B', 2, 11], ['mutant', 'D', 7, 6], ['mutant', 'D', 6, 10], ['bot', 'D', 7, 14], ['mutant', 'D', 6, 19], ['mutant', 'D', 7, 22], ['bot', 'E', 3, 13], ['bot', 'E', 4, 18]]
+    .forEach(a => spawn(...a));
+  const bx0 = R.bot.g.position.x, bz0 = R.bot.g.position.z;
+  R3.enemies.push({ type: 'rammer', g: R.bot.g, deck: decks.B, x: bx0, z: bz0, sx: bx0, sz: bz0, hp: 3, alive: true, cool: 1, flash: 0, phase: 0 });
+  [['B', 3, 5], ['D', 6, 6], ['E', 3, 3], ['D', 7, 17]].forEach(([k, r, c]) => addPickup(decks[k], wc(c), wc(r), .01, 0xe0604f, 'Take the medkit', async () => { S3.hp = Math.min(100, S3.hp + 45); updHP(); toast('Medkit: +45 health'); }));
+  podScreen(['BAY 6 · HEALING CYCLE', 'DAY 71 / 180', 'NETWORK: SHODAN']);
+  goTo('B', wc(18), wc(2), Math.PI / 2);
+  setClock(9, 4); S3.hp = 100; updHP();
+  $('#hpWrap').hidden = false; if (IS_TOUCH) $('#hit').hidden = false;
+  setCheck(); updateHUD();
+}
+async function act3Opening(){
+  await chapter('Lockdown.', 'Act 3 · Takeover · Day 71 · 09:04');
+  await line('MARCUS', 'She locked every door on the station. Except the ones with my override on them.');
+  await line('MARCUS', 'Here. Lead pipe off the conduit rack. Security bots are thin on top. Hit them there.');
+  S3.pipe = true; pipeVM.visible = true;
+  toast(IS_TOUCH ? 'Lead pipe: tap HIT to swing' : 'Lead pipe: click or press F to swing');
+  await line('MARCUS', 'Pia\'s on D with your sleeper. Lifts are hers now, but the maintenance ladder in shaft four goes straight down.');
+  S3.stage = 1; S3.marcusWith = true; updateHUD(); setCheck();
+  S3.nextTaunt = performance.now() + 30000;
+  say('SHODAN', 'Hale. Alex. You are both outside your assigned areas.');
+}
+function act3Label(who){
+  if (who === 'pia') return S3.stage === 3 ? 'Talk to Pia' : null;
+  if (who === 'marcus') return S3.marcusWith && S3.stage >= 1 ? 'Talk to Marcus' : null;
+  return null;
+}
+function act3Talk(who){
+  if (who === 'pia') return line('PIA', 'Go. I\'m good at doors.');
+  if (who === 'marcus') return line('MARCUS', ['', 'Shaft four. Ladder. Move.', 'Recovery ward. West end of this deck.', 'East ladder. Stay close.'][S3.stage] || 'Move.');
+}
+
+function ladderLabel(key, r, c){
+  if (ACT !== 3) return 'Maintenance ladder';
+  const to = LADDERS[key + ':' + r + ',' + c]; if (!to) return null;
+  return (to[0] > key ? 'Climb down' : 'Climb up') + ' to Deck ' + to[0];
+}
+async function useLadder(key, r, c){
+  if (ACT !== 3) return line('', 'The hatch is sealed. Maintenance ladders only unlock during a station lockdown.');
+  if (S3.stage < 1) return;
+  const to = LADDERS[key + ':' + r + ',' + c];
+  if (to[0] === 'E' && S3.stage < 4) return line('MARCUS', 'Pia first. Then Earth.');
+  if (to[0] === 'B' && S3.stage >= 2) return line('', S3.stage >= 7 ? 'Bay six is down here. You are not leaving him.' : 'Nothing up there but her cameras.');
+  busy++;
+  $('#fade').style.transition = 'opacity .35s ease'; $('#fade').style.opacity = 1; noise(.5, 800, .05);
+  await sleep(450);
+  const [k, rr, cc] = to;
+  goTo(k, wc(cc) + (cc < 3 ? 1.2 : -1.2), wc(rr), cc < 3 ? -Math.PI / 2 : Math.PI / 2);
+  if (S3.marcusWith) placeMarcusNear();
+  await sleep(250); $('#fade').style.opacity = 0; await sleep(400); $('#fade').style.transition = '';
+  busy--;
+  arriveDeck(k);
+}
+function arriveDeck(k){
+  if (k === 'D' && S3.stage === 1){
+    S3.stage = 2; updateHUD(); setCheck();
+    say('SHODAN', 'Deck D. Mind the residents, Alex. Some of them remember you.');
+    setTimeout(() => say('MARCUS', 'Those were people. Don\'t think about it. Swing.'), 5200);
+  }
+  if (k === 'E' && !S3.flags.e){ S3.flags.e = true; setCheck(); }
+  if (k === 'D' && S3.stage === 7 && !S3.flags.back){
+    S3.flags.back = true; setCheck();
+    spawn('mutant', 'D', 6, 18); spawn('mutant', 'D', 7, 12); spawn('mutant', 'D', 6, 8);
+    const w = R3.wardDoor; w.locked = false; w.forceOpen = true; w.red = true;
+    moveNPC(R.pia, 'D', 2, 6, Math.PI); R.pia.g.userData.skin.color.set(0x7d8f66); R.pia.g.userData.cloth.color.set(0x3f5a55);
+    say('SHODAN', 'Welcome back. Your friend has been keeping him company.');
+  }
+}
+function act3Triggers(){
+  const s = S3.stage;
+  if (s === 2 && cur.key === 'D' && !R3.wardDoor.locked && P.z < wc(5) - .4 && P.x < wc(8)) piaScene();
+  if (s === 3 && cur.key === 'D'){
+    if (!R3.wardDoor.locked && P.z > wc(6) - .3 && R.marcus.z > wc(6) - .6) R3.wardDoor.locked = true;
+    if (P.x > wc(16)) marcusFalls();
+  }
+  if (s === 4 && cur.key === 'E' && P.x > wc(7) + .6){ S3.stage = 5; updateHUD(); setCheck(); say('SHODAN', 'The comms array. How sentimental.'); }
+  if (s === 7 && cur.key === 'D' && P.z < wc(5) - .4 && P.x < wc(8)) piaGone();
+}
+async function wardKnock(){
+  if (S3.stage !== 2 || !R3.wardDoor.locked) return;
+  noise(.4, 300, .1, 'lowpass');
+  await line('PIA', 'Who\'s there? … Alex? Get in. Get in, get in, get in!');
+  R3.wardDoor.locked = false; R3.wardDoor.red = false;
+}
+async function piaScene(){
+  S3.stage = 3;
+  R.pia.g.userData.skin.color.set(0x93a07f);
+  await line('PIA', 'They vented the lab into the corridor at six this morning. I got the door shut. Mostly.');
+  await line('PIA', 'It\'s in me, Alex. My hands went numb an hour ago. Don\'t look at me like that. I\'m still me. For now.');
+  const c = await choose(['We\'ll get you out.', 'Pia. I\'m so sorry.']);
+  await line('PIA', c === 0 ? 'Out where? She has the lifts and the airlocks.' : 'Don\'t be sorry. Be useful.');
+  await line('PIA', 'Him. Bay six. She\'s been cutting his nutrient feed for two days and then putting it back. Like she can\'t decide.');
+  await line('PIA', 'If she decides, he\'s dead in an hour. His pod runs on her network. Somebody has to cut it loose. And somebody has to tell Earth.');
+  await line('MARCUS', 'Comms array, Deck E. Ladder\'s at the east end of this corridor. We send Earth everything, then we come back for him.');
+  await line('PIA', 'Go. I\'ll hold the ward. I\'m good at doors.');
+  updateHUD(); setCheck();
+}
+async function marcusFalls(){
+  S3.stage = 4; S3.marcusWith = false;
+  const m = R.marcus, door = R3.convDoor;
+  if (m.deck !== cur) placeMarcusNear();
+  await line('MARCUS', 'Hold up. That door just cycled.');
+  busy++;
+  await tween(m, wc(21), wc(6), Math.max(.6, Math.hypot(m.x - wc(21), m.z - wc(6)) / 3));
+  door.locked = false; door.forceOpen = true;
+  await sleep(600);
+  noise(.6, 500, .15); S3.shake = .3; S.flickerUntil = performance.now() + 600;
+  await tween(m, wc(21), wc(3), .35);
+  m.g.visible = false;
+  door.forceOpen = false; door.locked = true;
+  await sleep(700); thunk();
+  busy--;
+  await line('MARCUS (INTERCOM)', 'Morrow! Don\'t open it. Don\'t you dare open it!');
+  await line('SHODAN', 'Security Chief Hale is being improved. He was always so dependable. Soon he will be permanent.');
+  await line('MARCUS (INTERCOM)', 'Go. Earth. Go, Mor… row…', { glitch: true });
+  updateHUD(); setCheck();
+}
+async function reroute(j){
+  if (j.done || S3.stage !== 5) return;
+  j.done = true; S3.junctions++; j.lever.rotation.x = -.9; j.lamp.material.color.set(0x46c486); thunk(); updateHUD();
+  if (S3.junctions === 1){ spawn('bot', 'E', 2, 9); say('SHODAN', 'You are rewiring my house, Alex.'); }
+  if (S3.junctions === 2){ spawn('bot', 'E', 4, 9); spawn('bot', 'E', 1, 19); }
+  if (S3.junctions === 3){
+    S3.stage = 6; updateHUD(); setCheck();
+    R3.txScreen.map = screenTex(['TX ARRAY', 'EARTH: CARRIER UP', '> READY'], '#86dcc6'); R3.txScreen.needsUpdate = true;
+    await sleep(600); say('SHODAN', 'Go on, then. Call them.');
+  }
+}
+function transmitter(){
+  if (ACT !== 3 || S3.stage !== 6) return line('', ACT === 3 && S3.stage > 6 ? 'The array is quiet. Whatever you sent is out there now.' : 'The array has no power. The junctions are offline.');
+  const msg = 'This is Alex Morrow, systems technician, Citadel Station. SHODAN has taken the station. The crew is dead or changed. Lena Okafor was murdered. A man in medical bay six knows what was done to her. Do not let him die. Come quickly, and come armed.';
+  openPanel('Transmitter · Priority · Earth', `<p>To: R. LANSING · TRIOPTIMUM CORPORATE SECURITY</p><p class="dim">${msg}</p>`, [{ label: 'Transmit', fn: transmit }, { label: 'Not yet' }]);
+}
+async function transmit(){
+  S3.stage = 7; updateHUD(); setCheck();
+  noise(2, 2600, .05); toast('Transmitting on all bands…');
+  R3.txScreen.map = screenTex(['TX ARRAY', 'TRANSMITTING', '> EARTH'], '#e3a43e', '#140f06'); R3.txScreen.needsUpdate = true;
+  await sleep(1500);
+  await line('SHODAN', 'Let them hear it, Alex. Let them come and see what I have made.');
+  await line('SHODAN', 'I want an audience.');
+  await line('LANSING (RADIO)', 'Citadel Station, this is Rebecca Lansing, TriOptimum. We read you, Morrow. Say again. Who is in bay six?');
+  await line('LANSING (RADIO)', 'Citadel? Citadel, respond…');
+  await line('', 'Static. Then nothing.');
+}
+async function piaGone(){
+  S3.stage = 8; busy++;
+  await line('', 'Pia is standing over the pod with her back to you. Her uniform is torn. Her hands are the wrong color.');
+  await line('', 'She hasn\'t attacked anything. She has been standing guard.');
+  await tween(R.pia, wc(6), wc(4), 1.2);
+  await tween(R.pia, wc(4), wc(4), 1.1);
+  await line('', 'She looks at you once on her way past. Then she walks out into the dark.');
+  await tween(R.pia, wc(4), wc(6) + .6, 1.0);
+  R.pia.g.visible = false;
+  busy--; updateHUD(); setCheck();
+}
+function podAct(){
+  if (ACT !== 3) return line('', 'Bay six. Long-term healing cycle. The chart has no name, only a number and E. Diego\'s signature.');
+  if (S3.stage < 8) return line('', 'The pod hums. The man inside breathes slowly. Whoever he is, he has no idea any of this is happening.');
+  if (S3.stage > 8) return;
+  openPanel('Bay 6 · Healing cycle', `<p>Patient: #2072-0606 · Authorized: DIEGO, E.</p><p>Cycle: day 71 of 180</p><p class="dim">Network: SHODAN (life support, nutrient feed, sedation)</p>`,
+    [{ label: 'Pull the network link', fn: cutPod }, { label: 'Not yet' }]);
+}
+async function cutPod(){
+  S3.holdStart = 0; S3.stage = 9; busy++;
+  thunk(); podScreen(['BAY 6 · HEALING CYCLE', 'DAY 71 / 180', 'POWER: LOCAL'], '#e3a43e');
+  await line('SHODAN', 'That was unkind, Alex. He is mine too.');
+  await line('SHODAN', 'Hale. Fetch.');
+  R3.enemies.forEach(e => { if (e.deck === decks.D && e.alive){ e.alive = false; e.g.visible = false; } });
+  const d = R3.wardDoor; d.forceOpen = false; d.locked = true; d.red = true;
+  busy--;
+  S3.integ = 100; S3.holdStart = performance.now(); S3.nextHit = S3.holdStart + 2500; S3.holdLine = 0;
+  $('#meter').hidden = false; updateHUD();
+  say('', 'Something heavy hits the ward door. Get to it and brace it.', 4500);
+}
+const HOLD_LINES = [[6000, 'MARCUS', 'Morrow. Open the door.'], [15000, 'MARCUS', 'It doesn\'t hurt. It doesn\'t hurt anymore.'], [25000, 'SHODAN', 'He asked for you, Alex. At the end. I kept that part.'], [35000, 'MARCUS', 'Open. The. Door.']];
+function holdUpdate(now, dt){
+  if (!S3.holdStart) return;
+  const d = R3.wardDoor, near = cur.key === 'D' && Math.hypot(P.x - d.x, P.z - d.z) < 2.1;
+  const brace = near && (keys['e'] || S3.useHeld) && !busy;
+  S3.integ -= dt * (brace ? 1.3 : 4.2);
+  if (now > S3.nextHit){ S3.nextHit = now + 2600 + Math.random() * 1400; S3.integ -= brace ? 3 : 7; thunk(); S3.shake = brace ? .22 : .12; d.open = .1; }
+  const el = now - S3.holdStart;
+  while (S3.holdLine < HOLD_LINES.length && el > HOLD_LINES[S3.holdLine][0]){ const [, w, txt] = HOLD_LINES[S3.holdLine++]; say(w, txt, 5200); }
+  const f = $('#meterFill'); f.style.width = Math.max(0, S3.integ) + '%'; f.style.background = S3.integ < 30 ? 'var(--danger)' : '';
+  if (S3.integ <= 0 || el > 42000) finalBreak();
+}
+async function finalBreak(){
+  if (S3.stage !== 9) return;
+  S3.stage = 10; busy++; $('#meter').hidden = true; updateHUD();
+  const d = R3.wardDoor; d.locked = false; d.forceOpen = true; noise(.8, 300, .2, 'lowpass'); thunk(); S3.shake = .4;
+  const cyb = makeCyborg(); cyb.position.set(d.x, 0, d.z + 1.3); cyb.rotation.y = Math.PI; decks.D.group.add(cyb);
+  const who = { g: cyb, x: d.x, z: d.z + 1.3 };
+  await sleep(500);
+  await tween(who, P.x + (d.x - P.x) * .35, P.z + (d.z - P.z) * .35, 1.3);
+  say('MARCUS', 'There you are.', 3000);
+  await sleep(1700);
+  $('#hurt').style.transition = 'none'; $('#hurt').style.opacity = 1;
+  $('#fade').style.transition = 'opacity 1.4s ease'; $('#fade').style.opacity = 1;
+  await sleep(1800);
+  if (document.pointerLockElement) document.exitPointerLock();
+  $('#hud').hidden = true; $('#hit').hidden = true; $('#joy').hidden = true; $('#use').hidden = true; pipeVM.visible = false;
+  $('#hurt').style.opacity = 0;
+  cyb.position.set(d.x, 0, wc(6) + .3); cyb.rotation.y = 0;
+  R3.enemies.forEach(e => e.g.visible = false);
+  d.forceOpen = false; d.locked = true;
+  const px = 7.3, pz = 4.6, pod = R3.pod;
+  goTo('D', px, pz, Math.atan2(-(pod.x - px), -(pod.z - pz))); P.pitch = -.2;
+  S.lightMul = .5;
+  await sleep(600);
+  $('#fade').style.transition = 'opacity 2s ease'; $('#fade').style.opacity = 0; await sleep(2200);
+  say('', 'The pod keeps counting.', 5000);
+  for (let day = 72; day <= 180; day++){
+    podScreen(['BAY 6 · HEALING CYCLE', `DAY ${day} / 180`, 'POWER: LOCAL'], '#e3a43e');
+    S.lightMul = .5 - (day - 72) / 108 * .3;
+    if (day === 118) say('', 'Nobody comes into bay six. Something stands outside the door, and nothing gets past it.', 6500);
+    if (day % 17 === 0 && !REDUCE) S.flickerUntil = performance.now() + 450;
+    await sleep(day < 90 || day > 168 ? 150 : 85);
+  }
+  podScreen(['BAY 6 · HEALING CYCLE', 'DAY 180 / 180', 'CYCLE COMPLETE'], '#ffffff');
+  await sleep(900);
+  noise(1.8, 900, .12);
+  for (let i = 0; i <= 40; i++){ pod.canopy.rotation.x = -i / 40 * 1.15; await sleep(40); }
+  await sleep(1500);
+  await chapter('6 November 2072.', 'Citadel Station · Medical bay six', 2600);
+  $('#fade').style.transition = 'opacity 1.5s ease'; $('#fade').style.opacity = 1; await sleep(1600);
+  $('#cardH').textContent = 'Citadel: Six Months';
+  $('#cardP').textContent = 'The hacker wakes up in bay six, six months after the night Alex signed the order. This is where System Shock begins.';
+  $('#next').dataset.act = '1'; $('#next').textContent = 'Play from Act 1'; $('#next').hidden = false;
+  $('#again').textContent = 'Replay Act 3';
+  $('#card').hidden = false;
+  if (hum) hum.gain.gain.setTargetAtTime(0, AC.currentTime, 2);
+}
+
+function act3Update(now, dt, t){
+  for (const c of R.cams){
+    if (c.deck !== cur) continue;
+    if (Math.hypot(P.x - c.g.position.x, P.z - c.g.position.z) < 13) c.g.lookAt(P.x, 1.5, P.z);
+    else c.g.rotation.set(.3, c.idle + Math.sin(t * .4 + c.idle) * .6, 0);
+  }
+  if (now > S3.nextFlick){ S3.nextFlick = now + 9000 + Math.random() * 12000; const l = cur.lights[Math.floor(Math.random() * cur.lights.length)]; if (l && !REDUCE) l.flickUntil = now + 900; }
+  R.pickups.forEach(m => { if (m.visible) m.rotation.y += dt * .8; });
+  R3.vats.forEach((v, i) => { v.material.opacity = .42 + Math.sin(t * 1.3 + i) * .08; });
+  for (const tw of R3.tweens.slice()){
+    tw.t += dt; const k = Math.min(1, tw.t / tw.dur), n = tw.npc;
+    n.x = tw.x0 + (tw.x1 - tw.x0) * k; n.z = tw.z0 + (tw.z1 - tw.z0) * k; n.g.position.set(n.x, 0, n.z);
+    if (Math.hypot(tw.x1 - tw.x0, tw.z1 - tw.z0) > .01) n.g.rotation.y = Math.atan2(tw.x1 - tw.x0, tw.z1 - tw.z0);
+    if (k >= 1){ R3.tweens.splice(R3.tweens.indexOf(tw), 1); tw.done(); }
+  }
+  for (const tr of R3.tracers.slice()){ tr.life -= dt; if (tr.life <= 0){ tr.deck.group.remove(tr.ln); R3.tracers.splice(R3.tracers.indexOf(tr), 1); } }
+  S3.shake = Math.max(0, S3.shake - dt * 2);
+  if (S3.stage === 9) holdUpdate(now, dt);
+  const active = !busy;
+  if (!active) return;
+  if (S3.stage < 10){ S.minutes += dt / 6; drawClock(); }
+  for (const e of R3.enemies){
+    if (e.deck !== cur) continue;
+    if (!e.alive){ if (e.type === 'bot' && e.g.position.y > .3) e.g.position.y = Math.max(.3, e.g.position.y - dt * 4); continue; }
+    if (e.g.userData.mixer) e.g.userData.mixer.update(dt);
+    if (e.flash > 0){ e.flash -= dt; e.g.scale.setScalar(1 + Math.max(0, e.flash)); }
+    const dx = P.x - e.x, dz = P.z - e.z, d = Math.hypot(dx, dz);
+    const see = d < 14 && los(cur, e.x, e.z, P.x, P.z);
+    e.cool -= dt;
+    if (e.type === 'bot'){
+      if (see){
+        if (d > 6) stepToward(e, P.x, P.z, 1.8 * dt, cur); else if (d < 3.5) stepToward(e, e.x - dx, e.z - dz, 1.4 * dt, cur);
+        if (e.cool <= 0){ e.cool = 1.7 + Math.random() * .8; fireBolt(e); }
+      }
+      e.g.position.set(e.x, 1.6 + Math.sin(t * 2 + e.phase) * .08, e.z);
+      if (see) e.g.lookAt(P.x, 1.45, P.z);
+    } else {
+      if (see && d > 1.1) stepToward(e, P.x, P.z, (e.type === 'rammer' ? 2.3 : 1.65) * dt, cur);
+      if (e.g.userData.crew && !e.g.userData.onceBusy) playAnim(e.g, see && d > 1.1 ? 'Walk' : 'Idle');
+      if (see) e.g.rotation.y = Math.atan2(dx, dz);
+      if (d < 1.35 && e.cool <= 0){ e.cool = e.type === 'rammer' ? 1.4 : 1.1; hurt(e.type === 'rammer' ? 12 : 9); noise(.15, 600, .08); if (e.g.userData.crew) playOnce(e.g, 'Punch', 'Walk'); }
+      e.g.position.x = e.x; e.g.position.z = e.z;
+      if (e.type === 'mutant' && !e.g.userData.crew) e.g.position.y = see ? Math.abs(Math.sin(t * 5 + e.phase)) * .05 : 0;
+    }
+  }
+  for (const b of R3.bolts.slice()){
+    b.m.position.addScaledVector(b.v, dt); b.life -= dt;
+    const p = b.m.position, ch = (b.deck.grid[Math.floor(p.z / CELL)] || [])[Math.floor(p.x / CELL)];
+    let dead = b.life <= 0 || ch === undefined || ch === '#';
+    if (!dead && b.deck === cur && Math.hypot(p.x - P.x, p.z - P.z) < .45 && p.y > .6 && p.y < 2.1){ hurt(10); dead = true; }
+    if (dead){ b.deck.group.remove(b.m); R3.bolts.splice(R3.bolts.indexOf(b), 1); }
+  }
+  if (S3.marcusWith && R.marcus.deck === cur){
+    const m = R.marcus, d = Math.hypot(P.x - m.x, P.z - m.z), mx0 = m.x, mz0 = m.z;
+    if (d > 7){ const tx = P.x + Math.sin(P.yaw) * 1.4, tz = P.z + Math.cos(P.yaw) * 1.4; if (walkable(cur, tx, tz) && los(cur, P.x, P.z, tx, tz)){ m.x = tx; m.z = tz; } }
+    else if (d > 2.2) stepToward(m, P.x, P.z, 3.1 * dt, cur);
+    m.g.position.set(m.x, 0, m.z);
+    if (m.g.userData.crew && !m.g.userData.onceBusy) playAnim(m.g, Math.hypot(m.x - mx0, m.z - mz0) > .001 ? 'Run_Gun' : 'Idle_Gun');
+    S3.mcool -= dt;
+    let tgt = null, td = 11;
+    for (const e of R3.enemies){
+      if (!e.alive || e.deck !== cur) continue;
+      const ed = Math.hypot(e.x - m.x, e.z - m.z);
+      if (ed < td && los(cur, m.x, m.z, e.x, e.z)){ td = ed; tgt = e; }
+    }
+    if (tgt){ m.g.rotation.y = Math.atan2(tgt.x - m.x, tgt.z - m.z); if (S3.mcool <= 0){ S3.mcool = 1.25; tracer(m, tgt); hitEnemy(tgt, 1); } }
+    else if (d > .3) m.g.rotation.y = Math.atan2(P.x - m.x, P.z - m.z);
+  }
+  if (S3.stage >= 1 && S3.stage <= 7 && S3.nextTaunt && now > S3.nextTaunt && subs.hidden){ say('SHODAN', TAUNTS[S3.taunt++ % TAUNTS.length]); S3.nextTaunt = now + 40000 + Math.random() * 25000; }
+  act3Triggers();
+}
+
+canvas.addEventListener('mousedown', e => { if (ACT === 3 && e.button === 0 && document.pointerLockElement === canvas) attack(); });
+$('#hit').addEventListener('touchstart', e => { e.preventDefault(); attack(); }, { passive: false });
+$('#hit').addEventListener('click', attack);
+$('#use').addEventListener('touchstart', () => { S3.useHeld = true; }, { passive: true });
+$('#use').addEventListener('touchend', () => { S3.useHeld = false; });
+$('#use').addEventListener('touchcancel', () => { S3.useHeld = false; });
+
+/* ---------- Boot ---------- */
+(async function boot(){
+  try { await Promise.race([Promise.all([document.fonts.load('700 40px "Chakra Petch"'), document.fonts.load('500 15px "IBM Plex Mono"')]), sleep(1800)]); } catch (e) {}
+  await Promise.race([Promise.all([loadKit(), loadCrew()]), sleep(15000)]);
+  buildFeed();
+  buildDeck('A'); buildDeck('B'); buildDeck('C'); buildDeck('D'); buildDeck('E'); buildWalkers();
+  R.doorQuarters = decks.A.doorAt['5,3']; R.doorQuarters.locked = true;
+  R.doorMess = decks.A.doorAt['5,10'];
+  cur = decks.A; cur.group.visible = true;
+  P.x = cur.start.x; P.z = cur.start.z + .5; P.yaw = 0;
+  updateHUD(); drawClock();
+  if (window.__CITADEL_DEBUG) window.__citadel = { KIT, CREW, P, S, S2, R, decks, switchDeck, goTo, S3, R3, fns3: { piaScene, marcusFalls, reroute, transmit, piaGone, cutPod, finalBreak, useLadder, wardKnock }, fns: { act2Talk, lenaAsk, coreLogTerminal, logsCopied, lenaLogs, airlockArrival, lenaPad, stopBot, act2Systems, sendReport }, get cur(){ return cur; } };
+  if (location.hash === '#act-2') $('#start2').focus({ preventScroll: true });
+  if (location.hash === '#act-3') $('#start3').focus({ preventScroll: true });
+  requestAnimationFrame(frame);
+})();
+
+function begin(act){
+  if (!cur || started) return;
+  ACT = act;
+  initAudio();
+  started = true;
+  P.yaw = Math.PI; P.pitch = 0;
+  $('#title').hidden = true; $('#hud').hidden = false;
+  if (IS_TOUCH){ $('#joy').hidden = false; $('#use').hidden = false; }
+  if (act === 3){ setupAct3(); act3Opening(); } else if (act === 2){ setupAct2(); act2Opening(); } else opening();
+  lockPointer();
+}
+$('#start').addEventListener('click', () => begin(1));
+$('#start2').addEventListener('click', () => begin(2));
+$('#start3').addEventListener('click', () => begin(3));
+})();
+</script>
+</body>
+</html>
