@@ -698,18 +698,18 @@ const CREW = { ready: false, parts: {}, box: {}, clips: [], list: [] };
 const ROLE = {
   pia:      { base: 'Pia', real: true, fam: 'Pia:', fallback: 'Lis', height: 1.74, swap: { '#4c3a21': '#3f7f80', '#bd8e30': '#5aa3a0', '#466469': '#2f5f61', '#225385': '#3a2a20' } },
   lena:     { base: 'Lena', real: true, fam: 'Lena:', fallback: 'Lis', height: 1.78, swap: { '#4c3a21': '#6b4a32', '#bd8e30': '#8a6a48', '#466469': '#2f3439', '#225385': '#141010', '#c09264': '#8a6446' } },
-  marcus:   { base: 'Shaun', height: 1.88, swap: { '#4c3a21': '#2f3539', '#5f4009': '#3a4247', '#a58a3b': '#4a5258', '#466469': '#262b2f', '#946529': '#2a2f33', '#923c12': '#6b6660' } },
+  marcus:   { base: 'Marcus', real: true, fam: 'Marcus:', fallback: 'Shaun', height: 1.88, swap: { '#4c3a21': '#2f3539', '#5f4009': '#3a4247', '#a58a3b': '#4a5258', '#466469': '#262b2f', '#946529': '#2a2f33', '#923c12': '#6b6660' } },
   guard:    { base: 'Matt', height: 1.84, swap: { '#af6c1c': '#2f3539', '#4e694b': '#262b2f', '#466469': '#262b2f', '#af8d68': '#3a4247' } },
   prisoner: { base: 'Sam', height: 1.8, swap: { '#504c43': '#8a8478', '#af6c1c': '#8a8478', '#ac741d': '#5a554f', '#4c3a21': '#5a554f' } },
   stranger: { base: 'Sam', height: 1.8, swap: {} },
   diego:    { base: 'Matt', height: 1.86, swap: { '#af6c1c': '#26292c', '#4e694b': '#26292c', '#466469': '#26292c', '#312515': '#8a8a8a', '#af8d68': '#3a3d40' } },
-  cyborg:   { base: 'Shaun', height: 2.02, swap: { '#c09264': '#8d9499', '#4c3a21': '#22262a', '#5f4009': '#2a2e31', '#a58a3b': '#5a6066', '#466469': '#1d2023', '#946529': '#1d2023', '#923c12': '#3a3d40' } },
+  cyborg:   { base: 'Marcus', real: true, fam: 'Marcus:', fallback: 'Shaun', metal: true, height: 2.02, swap: { '#c09264': '#8d9499', '#4c3a21': '#22262a', '#5f4009': '#2a2e31', '#a58a3b': '#5a6066', '#466469': '#1d2023', '#946529': '#1d2023', '#923c12': '#3a3d40' } },
   mutantA:  { base: 'ZombieBasic', height: 1.72, swap: { '#769751': '#8a9a78', '#979770': '#4f6a6b', '#63723f': '#6f7d60' } },
   mutantB:  { base: 'ZombieChubby', height: 1.78, swap: { '#5f6397': '#7d8a72' } },
   mutantC:  { base: 'ZombieBasic', height: 1.66, swap: { '#769751': '#93a083', '#979770': '#5a5248', '#63723f': '#78846a' } }
 };
 /* Custom Blender crew (MPFB 2, CC0 assets): loaded beside the stand-ins; roles fall back to the cartoon base if a file is missing */
-const CUSTOM = { Pia: 'models/pia.json', Lena: 'models/lena.json' };
+const CUSTOM = { Pia: 'models/pia.json', Lena: 'models/lena.json', Marcus: 'models/marcus.json' };
 function loadCustom(){
   return Promise.all(Object.entries(CUSTOM).map(([k, url]) => new Promise(res => {
     new THREE.GLTFLoader().load(url, g => {
@@ -784,7 +784,9 @@ function makePerson(role, name, tagColor){
   m.traverse(o => {
     if (!o.isMesh) return;
     o.frustumCulled = false;
-    if (!mats.has(o.material)){ const c = o.material.clone(); if (c.map && !def.real) c.map = roleTexture(role, o.material.map); c.metalness = 0; c.roughness = def.real ? Math.max(c.roughness, .6) : .85; mats.set(o.material, c); }
+    if (!mats.has(o.material)){ const c = o.material.clone(); if (c.map && !def.real) c.map = roleTexture(role, o.material.map); c.metalness = 0; c.roughness = def.real ? Math.max(c.roughness, .6) : .85;
+      if (def.metal){ const body = /body/i.test(c.name); c.color.setHex(body ? 0x9aa3a8 : 0x55595d); if (body) c.map = null; c.metalness = body ? .8 : .3; c.roughness = body ? .32 : .7; if (/short|bob|long|braid|afro|ponytail|hair|eyebrow|eyelash/i.test(c.name)) c.visible = false; }
+      mats.set(o.material, c); }
     o.material = mats.get(o.material); mat = mat || o.material;
   });
   const gun = m.getObjectByName('Pistol'); if (gun) gun.visible = false;
@@ -2322,6 +2324,18 @@ function makeMutant(body){
 function makeCyborg(){
   if (CREW.ready){
     const n = makePerson('cyborg');
+    if (ROLE.cyborg.real){
+      // attach armour to bones so it follows the animation
+      const H = ROLE.cyborg.height * 1.28, sk = n.children[0];
+      const head = sk.getObjectByName('head'), chest = sk.getObjectByName('spine_03'), hand = sk.getObjectByName('hand_r');
+      const k = 1 / sk.scale.x;
+      const pin = (bone, w, h, d, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w * k, h * k, d * k), mat); m.position.set(x * k, y * k, z * k); (bone || n).add(m); return m; };
+      if (head){ pin(head, .2, .045, .05, lampMat(0xff2a1a), 0, .1, .11); pin(head, .2, .1, .2, M.metalMid, 0, .17, -.01); }
+      else bx(n, .22, .05, .05, lampMat(0xff2a1a), 0, H * .935, .13);
+      if (chest) pin(chest, .42, .32, .1, M.metalMid, 0, .1, .17); else bx(n, .4, .3, .14, M.metalMid, 0, H * .72, .12);
+      if (hand){ const b = pin(hand, .05, .7, .1, M.metalLight, 0, .32, 0); }
+      return n;
+    }
     bx(n, .5, .09, .06, lampMat(0xff2a1a), 0, 1.86, .33); bx(n, .62, .3, .34, M.metalMid, 0, 1.2, .08);
     const blade = bx(n, .06, .9, .12, M.metalLight, .42, .62, .2); blade.rotation.x = -.3;
     return n;
@@ -2771,7 +2785,7 @@ $('#use').addEventListener('touchcancel', () => { S3.useHeld = false; });
   cur = decks.A; cur.group.visible = true;
   P.x = cur.start.x; P.z = cur.start.z + .5; P.yaw = 0;
   updateHUD(); drawClock();
-  if (window.__CITADEL_DEBUG) window.__citadel = { KIT, CREW, P, S, S2, R, decks, switchDeck, goTo, S3, R3, fns3: { piaScene, marcusFalls, reroute, transmit, piaGone, cutPod, finalBreak, useLadder, wardKnock }, fns: { act2Talk, lenaAsk, coreLogTerminal, logsCopied, lenaLogs, airlockArrival, lenaPad, stopBot, act2Systems, sendReport }, get cur(){ return cur; } };
+  if (window.__CITADEL_DEBUG) window.__citadel = { KIT, CREW, P, S, S2, R, decks, makeCyborg, switchDeck, goTo, S3, R3, fns3: { piaScene, marcusFalls, reroute, transmit, piaGone, cutPod, finalBreak, useLadder, wardKnock }, fns: { act2Talk, lenaAsk, coreLogTerminal, logsCopied, lenaLogs, airlockArrival, lenaPad, stopBot, act2Systems, sendReport }, get cur(){ return cur; } };
   if (location.hash === '#act-2') $('#start2').focus({ preventScroll: true });
   if (location.hash === '#act-3') $('#start3').focus({ preventScroll: true });
   requestAnimationFrame(frame);
