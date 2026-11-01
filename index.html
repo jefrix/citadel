@@ -697,7 +697,7 @@ function kitDrone(){
 const CREW = { ready: false, parts: {}, box: {}, clips: [], list: [] };
 const ROLE = {
   pia:      { base: 'Pia', real: true, fam: 'Pia:', fallback: 'Lis', height: 1.74, swap: { '#4c3a21': '#3f7f80', '#bd8e30': '#5aa3a0', '#466469': '#2f5f61', '#225385': '#3a2a20' } },
-  lena:     { base: 'Lis', height: 1.78, swap: { '#4c3a21': '#6b4a32', '#bd8e30': '#8a6a48', '#466469': '#2f3439', '#225385': '#141010', '#c09264': '#8a6446' } },
+  lena:     { base: 'Lena', real: true, fam: 'Lena:', fallback: 'Lis', height: 1.78, swap: { '#4c3a21': '#6b4a32', '#bd8e30': '#8a6a48', '#466469': '#2f3439', '#225385': '#141010', '#c09264': '#8a6446' } },
   marcus:   { base: 'Shaun', height: 1.88, swap: { '#4c3a21': '#2f3539', '#5f4009': '#3a4247', '#a58a3b': '#4a5258', '#466469': '#262b2f', '#946529': '#2a2f33', '#923c12': '#6b6660' } },
   guard:    { base: 'Matt', height: 1.84, swap: { '#af6c1c': '#2f3539', '#4e694b': '#262b2f', '#466469': '#262b2f', '#af8d68': '#3a4247' } },
   prisoner: { base: 'Sam', height: 1.8, swap: { '#504c43': '#8a8478', '#af6c1c': '#8a8478', '#ac741d': '#5a554f', '#4c3a21': '#5a554f' } },
@@ -709,7 +709,7 @@ const ROLE = {
   mutantC:  { base: 'ZombieBasic', height: 1.66, swap: { '#769751': '#93a083', '#979770': '#5a5248', '#63723f': '#78846a' } }
 };
 /* Custom Blender crew (MPFB 2, CC0 assets): loaded beside the stand-ins; roles fall back to the cartoon base if a file is missing */
-const CUSTOM = { Pia: 'models/pia.json' };
+const CUSTOM = { Pia: 'models/pia.json', Lena: 'models/lena.json' };
 function loadCustom(){
   return Promise.all(Object.entries(CUSTOM).map(([k, url]) => new Promise(res => {
     new THREE.GLTFLoader().load(url, g => {
