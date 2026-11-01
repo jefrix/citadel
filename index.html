@@ -696,7 +696,7 @@ function kitDrone(){
 /* ---------- Crew models: Quaternius Zombie Apocalypse Kit characters (CC0), stand-ins until custom crew exist ---------- */
 const CREW = { ready: false, parts: {}, box: {}, clips: [], list: [] };
 const ROLE = {
-  pia:      { base: 'Lis', height: 1.74, swap: { '#4c3a21': '#3f7f80', '#bd8e30': '#5aa3a0', '#466469': '#2f5f61', '#225385': '#3a2a20' } },
+  pia:      { base: 'Pia', real: true, fam: 'Pia:', fallback: 'Lis', height: 1.74, swap: { '#4c3a21': '#3f7f80', '#bd8e30': '#5aa3a0', '#466469': '#2f5f61', '#225385': '#3a2a20' } },
   lena:     { base: 'Lis', height: 1.78, swap: { '#4c3a21': '#6b4a32', '#bd8e30': '#8a6a48', '#466469': '#2f3439', '#225385': '#141010', '#c09264': '#8a6446' } },
   marcus:   { base: 'Shaun', height: 1.88, swap: { '#4c3a21': '#2f3539', '#5f4009': '#3a4247', '#a58a3b': '#4a5258', '#466469': '#262b2f', '#946529': '#2a2f33', '#923c12': '#6b6660' } },
   guard:    { base: 'Matt', height: 1.84, swap: { '#af6c1c': '#2f3539', '#4e694b': '#262b2f', '#466469': '#262b2f', '#af8d68': '#3a4247' } },
@@ -708,19 +708,38 @@ const ROLE = {
   mutantB:  { base: 'ZombieChubby', height: 1.78, swap: { '#5f6397': '#7d8a72' } },
   mutantC:  { base: 'ZombieBasic', height: 1.66, swap: { '#769751': '#93a083', '#979770': '#5a5248', '#63723f': '#78846a' } }
 };
+/* Custom Blender crew (MPFB 2, CC0 assets): loaded beside the stand-ins; roles fall back to the cartoon base if a file is missing */
+const CUSTOM = { Pia: 'models/pia.json' };
+function loadCustom(){
+  return Promise.all(Object.entries(CUSTOM).map(([k, url]) => new Promise(res => {
+    new THREE.GLTFLoader().load(url, g => {
+      const n = g.scene.getObjectByName('Char_' + k) || g.scene;
+      n.updateMatrixWorld(true);
+      CREW.parts[k] = n; CREW.box[k] = new THREE.Box3().setFromObject(n);
+      CREW.extra = (CREW.extra || []).concat(g.animations); res(true);
+    }, undefined, () => res(false));
+  })));
+}
 function loadCrew(){
+  return Promise.all([loadCrewBase(), THREE.GLTFLoader ? loadCustom() : null]).then(([ok]) => {
+    if (CREW.extra) CREW.clips = CREW.clips.concat(CREW.extra);
+    for (const r of Object.values(ROLE)) if (!CREW.parts[r.base] && r.fallback){ r.base = r.fallback; r.real = false; r.fam = null; }
+    return ok;
+  });
+}
+function loadCrewBase(){
   return new Promise(res => {
     if (!THREE.GLTFLoader || !THREE.SkeletonUtils) return res(false);
     new THREE.GLTFLoader().load('models/citadel-crew.json', g => {
       g.scene.updateMatrixWorld(true);
       const BODY = { Lis: 'Lis', Shaun: 'Shaun', Sam: 'Sam', Matt: 'Matt', ZombieBasic: 'Zombie', ZombieChubby: 'Zombie_Chubby' };
       g.scene.children.forEach(n => {
-        const k = n.name.replace('Char_', ''); CREW.parts[k] = n;
+        const k = n.name.replace('Char_', ''); if (!BODY[k]) return; CREW.parts[k] = n;
         n.traverse(o => { if (o !== n) o.name = o.name.replace(/_\d+$/, ''); });
         let body = null; n.traverse(o => { if (o.isMesh && o.name === BODY[k]) body = o; });
         CREW.box[k] = new THREE.Box3().setFromObject(body || n);
       });
-      CREW.clips = g.animations; CREW.ready = !!CREW.parts.Lis; res(CREW.ready);
+      CREW.clips = CREW.clips.concat(g.animations); CREW.ready = !!CREW.parts.Lis; res(CREW.ready);
     }, undefined, () => res(false));
   });
 }
@@ -765,14 +784,14 @@ function makePerson(role, name, tagColor){
   m.traverse(o => {
     if (!o.isMesh) return;
     o.frustumCulled = false;
-    if (!mats.has(o.material)){ const c = o.material.clone(); if (c.map) c.map = roleTexture(role, o.material.map); c.metalness = 0; c.roughness = .85; mats.set(o.material, c); }
+    if (!mats.has(o.material)){ const c = o.material.clone(); if (c.map && !def.real) c.map = roleTexture(role, o.material.map); c.metalness = 0; c.roughness = def.real ? Math.max(c.roughness, .6) : .85; mats.set(o.material, c); }
     o.material = mats.get(o.material); mat = mat || o.material;
   });
   const gun = m.getObjectByName('Pistol'); if (gun) gun.visible = false;
   const s = def.height * 1.28 / (box.max.y - box.min.y);
   m.scale.setScalar(s); m.position.y = -box.min.y * s;
   const g = new THREE.Group(); g.add(m);
-  const mixer = new THREE.AnimationMixer(m), fam = def.base.startsWith('Zombie') ? 'Zombie:' : 'Human:', act = {};
+  const mixer = new THREE.AnimationMixer(m), fam = def.fam || (def.base.startsWith('Zombie') ? 'Zombie:' : 'Human:'), act = {};
   CREW.clips.filter(c => c.name.startsWith(fam)).forEach(c => { act[c.name.slice(fam.length)] = mixer.clipAction(c); });
   g.userData = { mixer, act, cur: null, torso: new THREE.Object3D(), skin: mat, cloth: new THREE.MeshBasicMaterial(), gun, height: def.height, crew: true };
   if (act.Idle){ act.Idle.time = Math.random() * act.Idle.getClip().duration; }
