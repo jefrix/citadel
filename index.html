@@ -777,6 +777,36 @@ function playOnce(g, name, back, clamp = false){
   u.cur = a;
   if (back) u.onceT = setTimeout(() => { u.onceBusy = false; if (u.cur === a){ u.cur = null; playAnim(g, back); } }, a.getClip().duration * 1000 - 120);
 }
+/* Calm standing idle for the realistic crew, built from the skeleton's rest pose (arms down, breathing, slight sway) */
+const CALM = {};
+function calmIdle(base, seed){
+  const key = base + seed; if (CALM[key]) return CALM[key];
+  const root = CREW.parts[base]; root.updateMatrixWorld(true);
+  const B = n => root.getObjectByName(n), V = () => new THREE.Vector3(), Q = () => new THREE.Quaternion();
+  const wp = n => { const b = B(n); return b ? b.getWorldPosition(V()) : null; }, wq = n => B(n).getWorldQuaternion(Q());
+  const T = 4, K = 13, times = [...Array(K).keys()].map(i => i * T / (K - 1)), tracks = [];
+  const from = (a, b) => Q().setFromUnitVectors(a.clone().normalize(), b.clone().normalize());
+  const sides = [['l', 1], ['r', -1]].filter(([s]) => B('upperarm_' + s) && B('lowerarm_' + s) && B('hand_' + s));
+  const vals = {}; const push = (n, q) => (vals[n] = vals[n] || []).push(q.x, q.y, q.z, q.w);
+  for (const t of times){
+    const ph = 2 * Math.PI * (t / T + seed), s1 = Math.sin(ph), b2 = Math.sin(2 * ph);
+    for (const [s, sx] of sides){
+      const chain = [['upperarm_' + s, 'lowerarm_' + s, [sx * .14, -1, -.02 + .01 * s1]], ['lowerarm_' + s, 'hand_' + s, [sx * .05, -1, .2 + .02 * b2]], ['hand_' + s, 'middle_01_' + s, [sx * .02, -1, .16]]];
+      let parentW = B('upperarm_' + s).parent.getWorldQuaternion(Q());
+      for (const [bn, cn, tgt] of chain){
+        const a = wp(bn), c = wp(cn); if (!c) { push(bn, B(bn).quaternion); continue; }
+        const w = from(c.sub(a), new THREE.Vector3(...tgt)).multiply(wq(bn));
+        push(bn, parentW.clone().invert().multiply(w)); parentW = w;
+      }
+    }
+    const tilt = (bn, rx, ry, rz) => { const b = B(bn); if (!b) return; const pw = b.parent.getWorldQuaternion(Q()), e = Q().setFromEuler(new THREE.Euler(rx, ry, rz)); push(bn, pw.clone().invert().multiply(e.multiply(wq(bn)))); };
+    tilt('spine_01', 0, 0, .012 * s1);
+    tilt('spine_03', -.02 * b2, .015 * s1, 0);
+    tilt('head', .025 * Math.cos(ph), .06 * Math.sin(ph + 2), 0);
+  }
+  for (const n in vals) tracks.push(new THREE.QuaternionKeyframeTrack(B(n).name + '.quaternion', times, vals[n]));
+  return CALM[key] = new THREE.AnimationClip('CalmIdle', T, tracks);
+}
 function makePerson(role, name, tagColor){
   const def = ROLE[role], base = CREW.parts[def.base], box = CREW.box[def.base];
   const m = THREE.SkeletonUtils.clone(base); m.position.set(0, 0, 0);
@@ -795,6 +825,7 @@ function makePerson(role, name, tagColor){
   const g = new THREE.Group(); g.add(m);
   const mixer = new THREE.AnimationMixer(m), fam = def.fam || (def.base.startsWith('Zombie') ? 'Zombie:' : 'Human:'), act = {};
   CREW.clips.filter(c => c.name.startsWith(fam)).forEach(c => { act[c.name.slice(fam.length)] = mixer.clipAction(c); });
+  if (def.real && !def.metal){ act.Idle_Ready = act.Idle; act.Idle = mixer.clipAction(calmIdle(def.base, (CREW.list.length * .37) % 1)); }
   g.userData = { mixer, act, cur: null, torso: new THREE.Object3D(), skin: mat, cloth: new THREE.MeshBasicMaterial(), gun, height: def.height, crew: true };
   if (act.Idle){ act.Idle.time = Math.random() * act.Idle.getClip().duration; }
   playAnim(g, 'Idle');

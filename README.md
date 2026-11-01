@@ -13,3 +13,6 @@ A three-act, first-person prequel to *System Shock* (1994), built with three.js.
 - Fonts: Chakra Petch and IBM Plex Mono from Google Fonts (SIL Open Font License).
 
 *System Shock*, SHODAN, Citadel Station and TriOptimum belong to their rights holders (Nightdive Studios). This is a non-commercial fan project.
+
+## Custom crew (Blender)
+- `models/pia.json`, `models/lena.json`, `models/marcus.json` — Pia Varga, Lena Okafor and Marcus Hale (also used, tinted, for the Act 3 cyborg), each built in Blender with MPFB 2 (MakeHuman). MakeHuman base mesh and system assets are CC0. Animations retargeted from the Quaternius clips.
