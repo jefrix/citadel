@@ -16,3 +16,4 @@ A three-act, first-person prequel to *System Shock* (1994), built with three.js.
 
 ## Custom crew (Blender)
 - `models/pia.json`, `models/lena.json`, `models/marcus.json` — Pia Varga, Lena Okafor and Marcus Hale (also used, tinted, for the Act 3 cyborg), each built in Blender with MPFB 2 (MakeHuman). MakeHuman base mesh and system assets are CC0. Animations retargeted from the Quaternius clips.
+- `models/guard.json`, `models/diego.json`, `models/prisoner.json`, `models/mutanta.json`, `models/mutantb.json` — supporting cast and Act 3 mutants, same MPFB 2 / CC0 pipeline. The cartoon pack (`citadel-crew.json`) stays as a fallback.

@@ -699,17 +699,17 @@ const ROLE = {
   pia:      { base: 'Pia', real: true, fam: 'Pia:', fallback: 'Lis', height: 1.74, swap: { '#4c3a21': '#3f7f80', '#bd8e30': '#5aa3a0', '#466469': '#2f5f61', '#225385': '#3a2a20' } },
   lena:     { base: 'Lena', real: true, fam: 'Lena:', fallback: 'Lis', height: 1.78, swap: { '#4c3a21': '#6b4a32', '#bd8e30': '#8a6a48', '#466469': '#2f3439', '#225385': '#141010', '#c09264': '#8a6446' } },
   marcus:   { base: 'Marcus', real: true, fam: 'Marcus:', fallback: 'Shaun', height: 1.88, swap: { '#4c3a21': '#2f3539', '#5f4009': '#3a4247', '#a58a3b': '#4a5258', '#466469': '#262b2f', '#946529': '#2a2f33', '#923c12': '#6b6660' } },
-  guard:    { base: 'Matt', height: 1.84, swap: { '#af6c1c': '#2f3539', '#4e694b': '#262b2f', '#466469': '#262b2f', '#af8d68': '#3a4247' } },
-  prisoner: { base: 'Sam', height: 1.8, swap: { '#504c43': '#8a8478', '#af6c1c': '#8a8478', '#ac741d': '#5a554f', '#4c3a21': '#5a554f' } },
-  stranger: { base: 'Sam', height: 1.8, swap: {} },
-  diego:    { base: 'Matt', height: 1.86, swap: { '#af6c1c': '#26292c', '#4e694b': '#26292c', '#466469': '#26292c', '#312515': '#8a8a8a', '#af8d68': '#3a3d40' } },
+  guard:    { base: 'Guard', real: true, fam: 'Guard:', fallback: 'Matt', height: 1.84, swap: { '#af6c1c': '#2f3539', '#4e694b': '#262b2f', '#466469': '#262b2f', '#af8d68': '#3a4247' } },
+  prisoner: { base: 'Prisoner', real: true, fam: 'Prisoner:', fallback: 'Sam', height: 1.8, swap: { '#504c43': '#8a8478', '#af6c1c': '#8a8478', '#ac741d': '#5a554f', '#4c3a21': '#5a554f' } },
+  stranger: { base: 'Prisoner', real: true, fam: 'Prisoner:', fallback: 'Sam', height: 1.8, swap: {} },
+  diego:    { base: 'Diego', real: true, fam: 'Diego:', fallback: 'Matt', height: 1.86, swap: { '#af6c1c': '#26292c', '#4e694b': '#26292c', '#466469': '#26292c', '#312515': '#8a8a8a', '#af8d68': '#3a3d40' } },
   cyborg:   { base: 'Marcus', real: true, fam: 'Marcus:', fallback: 'Shaun', metal: true, height: 2.02, swap: { '#c09264': '#8d9499', '#4c3a21': '#22262a', '#5f4009': '#2a2e31', '#a58a3b': '#5a6066', '#466469': '#1d2023', '#946529': '#1d2023', '#923c12': '#3a3d40' } },
-  mutantA:  { base: 'ZombieBasic', height: 1.72, swap: { '#769751': '#8a9a78', '#979770': '#4f6a6b', '#63723f': '#6f7d60' } },
-  mutantB:  { base: 'ZombieChubby', height: 1.78, swap: { '#5f6397': '#7d8a72' } },
-  mutantC:  { base: 'ZombieBasic', height: 1.66, swap: { '#769751': '#93a083', '#979770': '#5a5248', '#63723f': '#78846a' } }
+  mutantA:  { base: 'MutantA', real: true, zombie: true, fam: 'MutantA:', fallback: 'ZombieBasic', height: 1.72, swap: { '#769751': '#8a9a78', '#979770': '#4f6a6b', '#63723f': '#6f7d60' } },
+  mutantB:  { base: 'MutantB', real: true, zombie: true, fam: 'MutantB:', fallback: 'ZombieChubby', height: 1.78, swap: { '#5f6397': '#7d8a72' } },
+  mutantC:  { base: 'MutantA', real: true, zombie: true, fam: 'MutantA:', fallback: 'ZombieBasic', height: 1.66, swap: { '#769751': '#93a083', '#979770': '#5a5248', '#63723f': '#78846a' } }
 };
 /* Custom Blender crew (MPFB 2, CC0 assets): loaded beside the stand-ins; roles fall back to the cartoon base if a file is missing */
-const CUSTOM = { Pia: 'models/pia.json', Lena: 'models/lena.json', Marcus: 'models/marcus.json' };
+const CUSTOM = { Pia: 'models/pia.json', Lena: 'models/lena.json', Marcus: 'models/marcus.json', Guard: 'models/guard.json', Diego: 'models/diego.json', Prisoner: 'models/prisoner.json', MutantA: 'models/mutanta.json', MutantB: 'models/mutantb.json' };
 function loadCustom(){
   return Promise.all(Object.entries(CUSTOM).map(([k, url]) => new Promise(res => {
     new THREE.GLTFLoader().load(url, g => {
@@ -723,7 +723,7 @@ function loadCustom(){
 function loadCrew(){
   return Promise.all([loadCrewBase(), THREE.GLTFLoader ? loadCustom() : null]).then(([ok]) => {
     if (CREW.extra) CREW.clips = CREW.clips.concat(CREW.extra);
-    for (const r of Object.values(ROLE)) if (!CREW.parts[r.base] && r.fallback){ r.base = r.fallback; r.real = false; r.fam = null; }
+    for (const r of Object.values(ROLE)) if (!CREW.parts[r.base] && r.fallback){ r.base = r.fallback; r.real = false; r.zombie = false; r.fam = null; }
     return ok;
   });
 }
@@ -825,7 +825,7 @@ function makePerson(role, name, tagColor){
   const g = new THREE.Group(); g.add(m);
   const mixer = new THREE.AnimationMixer(m), fam = def.fam || (def.base.startsWith('Zombie') ? 'Zombie:' : 'Human:'), act = {};
   CREW.clips.filter(c => c.name.startsWith(fam)).forEach(c => { act[c.name.slice(fam.length)] = mixer.clipAction(c); });
-  if (def.real && !def.metal){ act.Idle_Ready = act.Idle; act.Idle = mixer.clipAction(calmIdle(def.base, (CREW.list.length * .37) % 1)); }
+  if (def.real && !def.metal && !def.zombie){ act.Idle_Ready = act.Idle; act.Idle = mixer.clipAction(calmIdle(def.base, (CREW.list.length * .37) % 1)); }
   g.userData = { mixer, act, cur: null, torso: new THREE.Object3D(), skin: mat, cloth: new THREE.MeshBasicMaterial(), gun, height: def.height, crew: true };
   if (act.Idle){ act.Idle.time = Math.random() * act.Idle.getClip().duration; }
   playAnim(g, 'Idle');
@@ -1330,8 +1330,9 @@ function buildWalkers(){
   const crew = CREW.ready;
   const a = crew ? makePerson('guard') : makeNPC(null, 0x2e3438, 0xe0604f), p = crew ? makePerson('prisoner') : makeNPC(null, 0x5a554f, 0x111111), b = crew ? makePerson('guard') : makeNPC(null, 0x2e3438, 0xe0604f);
   const hood = crew ? new THREE.Mesh(new THREE.SphereGeometry(.36, 16, 12), std(0x2a2724, 1)) : new THREE.Mesh(new THREE.ConeGeometry(.24, .58, 14), std(0x2a2724, 1));
-  if (crew){ hood.scale.set(1.2, 1.35, 1.25); hood.position.y = 1.78; } else hood.position.y = 1.86;
-  p.add(hood);
+  const headBone = crew && ROLE.prisoner.real ? p.children[0].getObjectByName('head') : null;
+  if (headBone){ const k = 1 / p.children[0].scale.x; hood.geometry = new THREE.SphereGeometry(.15 * k, 16, 12); hood.scale.set(1.05, 1.3, 1.15); hood.position.set(0, .1 * k, -.01 * k); headBone.add(hood); }
+  else { if (crew){ hood.scale.set(1.2, 1.35, 1.25); hood.position.y = 1.78; } else hood.position.y = 1.86; p.add(hood); }
   [a, p, b].forEach((n, i) => { n.visible = false; n.rotation.y = Math.PI / 2; d.group.add(n); walkers.push({ g: n, off: i * 1.3 }); });
 }
 let walk = null;
@@ -2816,7 +2817,7 @@ $('#use').addEventListener('touchcancel', () => { S3.useHeld = false; });
   cur = decks.A; cur.group.visible = true;
   P.x = cur.start.x; P.z = cur.start.z + .5; P.yaw = 0;
   updateHUD(); drawClock();
-  if (window.__CITADEL_DEBUG) window.__citadel = { KIT, CREW, P, S, S2, R, decks, makeCyborg, switchDeck, goTo, S3, R3, fns3: { piaScene, marcusFalls, reroute, transmit, piaGone, cutPod, finalBreak, useLadder, wardKnock }, fns: { act2Talk, lenaAsk, coreLogTerminal, logsCopied, lenaLogs, airlockArrival, lenaPad, stopBot, act2Systems, sendReport }, get cur(){ return cur; } };
+  if (window.__CITADEL_DEBUG) window.__citadel = { KIT, CREW, P, S, S2, R, decks, makeCyborg, makePerson, walkers, switchDeck, goTo, S3, R3, fns3: { piaScene, marcusFalls, reroute, transmit, piaGone, cutPod, finalBreak, useLadder, wardKnock }, fns: { act2Talk, lenaAsk, coreLogTerminal, logsCopied, lenaLogs, airlockArrival, lenaPad, stopBot, act2Systems, sendReport }, get cur(){ return cur; } };
   if (location.hash === '#act-2') $('#start2').focus({ preventScroll: true });
   if (location.hash === '#act-3') $('#start3').focus({ preventScroll: true });
   requestAnimationFrame(frame);
